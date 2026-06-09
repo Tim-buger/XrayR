@@ -1,14 +1,11 @@
 package controller
 
 import (
-	"context"
-	"encoding/base64"
 	"fmt"
 	"strings"
 
 	"github.com/sagernet/sing-shadowsocks/shadowaead_2022"
 	C "github.com/sagernet/sing/common"
-	"github.com/xtls/xray-core/common/errors"
 	"github.com/xtls/xray-core/common/protocol"
 	"github.com/xtls/xray-core/common/serial"
 	"github.com/xtls/xray-core/infra/conf"
@@ -85,16 +82,11 @@ func (c *Controller) buildSSUser(userInfo *[]api.UserInfo, method string) (users
 		// Shadowsocks 2022 使用 base64 密钥，多用户账号不再单独指定加密方法。
 		if C.Contains(shadowaead_2022.List, strings.ToLower(method)) {
 			e := c.buildUserTag(&user)
-			userKey, err := c.checkShadowsocksPassword(user.Passwd, method)
-			if err != nil {
-				errors.LogError(context.Background(), "[UID: %d] %s", user.UID, err)
-				continue
-			}
 			users[i] = &protocol.User{
 				Level: 0,
 				Email: e,
 				Account: serial.ToTypedMessage(&shadowsocks_2022.Account{
-					Key: userKey,
+					Key: user.Passwd,
 				}),
 			}
 		} else {
@@ -119,16 +111,11 @@ func (c *Controller) buildSSPluginUser(userInfo *[]api.UserInfo) (users []*proto
 		// Shadowsocks 2022 使用 base64 密钥，多用户账号不再单独指定加密方法。
 		if C.Contains(shadowaead_2022.List, strings.ToLower(user.Method)) {
 			e := c.buildUserTag(&user)
-			userKey, err := c.checkShadowsocksPassword(user.Passwd, user.Method)
-			if err != nil {
-				errors.LogError(context.Background(), "[UID: %d] %s", user.UID, err)
-				continue
-			}
 			users[i] = &protocol.User{
 				Level: 0,
 				Email: e,
 				Account: serial.ToTypedMessage(&shadowsocks_2022.Account{
-					Key: userKey,
+					Key: user.Passwd,
 				}),
 			}
 		} else {
@@ -168,25 +155,4 @@ func cipherFromString(c string) shadowsocks.CipherType {
 func (c *Controller) buildUserTag(user *api.UserInfo) string {
 	// 用户标识：InboundTag|email|uid
 	return fmt.Sprintf("%s|%s|%d", c.Tag, user.Email, user.UID)
-}
-
-func (c *Controller) checkShadowsocksPassword(password string, method string) (string, error) {
-	// v2board 面板下 shadowsocks2022 的 key 需要截断并 base64
-	if strings.Contains(c.panelType, "V2board") {
-		var userKey string
-		if len(password) < 16 {
-			return "", newError("shadowsocks2022 key's length must be greater than 16").AtWarning()
-		}
-		if method == "2022-blake3-aes-128-gcm" {
-			userKey = password[:16]
-		} else {
-			if len(password) < 32 {
-				return "", newError("shadowsocks2022 key's length must be greater than 32").AtWarning()
-			}
-			userKey = password[:32]
-		}
-		return base64.StdEncoding.EncodeToString([]byte(userKey)), nil
-	} else {
-		return password, nil
-	}
 }

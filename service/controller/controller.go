@@ -41,7 +41,6 @@ type Controller struct {
 	limitedUsers map[api.UserInfo]LimitInfo
 	warnedUsers  map[api.UserInfo]int
 	// 组件引用
-	panelType  string
 	ibm        inbound.Manager
 	obm        outbound.Manager
 	stm        stats.Manager
@@ -57,7 +56,7 @@ type periodicTask struct {
 }
 
 // New 创建控制器，并绑定 xray-core 的入站、出站、统计和分发组件。
-func New(server *core.Instance, api api.API, config *Config, panelType string) *Controller {
+func New(server *core.Instance, api api.API, config *Config) *Controller {
 	// 构造 Controller，并绑定 xray-core 的各类 Manager
 	logger := log.NewEntry(log.StandardLogger()).WithFields(log.Fields{
 		"Host": api.Describe().APIHost,
@@ -68,7 +67,6 @@ func New(server *core.Instance, api api.API, config *Config, panelType string) *
 		server:     server,
 		config:     config,
 		apiClient:  api,
-		panelType:  panelType,
 		ibm:        server.GetFeature(inbound.ManagerType()).(inbound.Manager),
 		obm:        server.GetFeature(outbound.ManagerType()).(outbound.Manager),
 		stm:        server.GetFeature(stats.ManagerType()).(stats.Manager),

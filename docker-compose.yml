@@ -16,7 +16,7 @@ services:
       TZ: ${TZ:-Asia/Shanghai}
     volumes:
       # config.yml、geo 数据、规则文件和自动申请的证书都保存在宿主机。
-      - ./release/config:/etc/XrayR
+      - /etc/XrayR:/etc/XrayR
     ulimits:
       nofile:
         soft: 1000000

@@ -17,7 +17,7 @@ type Config struct {
 }
 
 type NodesConfig struct {
-	// 单个面板节点配置
+	// 单个 SSPanel 节点配置；PanelType 必须为 SSpanel。
 	PanelType        string             `mapstructure:"PanelType"`
 	ApiConfig        *api.Config        `mapstructure:"ApiConfig"`
 	ControllerConfig *controller.Config `mapstructure:"ControllerConfig"`

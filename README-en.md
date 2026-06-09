@@ -10,7 +10,7 @@
 
 [Iranian(farsi) README](https://github.com/XrayR-project/XrayR/blob/master/README_Fa.md), [Vietnamese(vi) README](https://github.com/XrayR-project/XrayR/blob/master/README-vi.md), [English(en) README](https://github.com/XrayR-project/XrayR/blob/master/README-en.md)
 
-A Xray backend framework that can easily support many panels.
+A Xray backend for SSPanel-UIM.
 
 A back -end framework based on XRAY supports V2ay, Trojan, Shadowsocks protocols, which are easy to expand and support multi -panel docker.
 
@@ -55,16 +55,9 @@ This project is just my personal learning and development and maintenance. I do 
 | According to user speed limit    | √     | √      | √           |
 | Custom DNS    | √     | √      | √           |
 
-## Support for panels
+## Supported panel
 
-| Panel                                                     | v2ray | trojan | shadowsocks             |
-|--------------------------------------------------------|-------|--------|-------------------------|
-| sspanel-uim                                            | √     | √      | √ (Single-ended multi-user and V2Ray-Plugin) |
-| v2board                                                | √     | √      | √                       |
-| [PMPanel](https://github.com/ByteInternetHK/PMPanel)   | √     | √      | √                       |
-| [ProxyPanel](https://github.com/ProxyPanel/ProxyPanel) | √     | √      | √                       |
-| [WHMCS (V2RaySocks)](https://v2raysocks.doxtex.com/)   | √     | √      | √                       |
-| [BunPanel](https://github.com/pennyMorant/bunpanel-release)   | √     | √      | √                       |
+This source tree only retains the `sspanel-uim` adapter.
 
 ## Software Installation
 
@@ -106,5 +99,4 @@ wget -N https://raw.githubusercontent.com/XrayR-project/XrayR-release/master/ins
 ## Stargazers over time
 
 [![Stargazers over time](https://starchart.cc/XrayR-project/XrayR.svg)](https://starchart.cc/XrayR-project/XrayR)
-
 

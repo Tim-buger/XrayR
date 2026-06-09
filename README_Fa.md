@@ -50,16 +50,9 @@
 | محدودیت سرعت بر اساس کاربر    | √     | √      | √           |
 | DNS سفارشی    | √     | √      | √           |
 
-## پشتیبانی از قسمت فرانت
+## پنل پشتیبانی شده
 
-| قسمت فرانت                                                     | v2ray | trojan | shadowsocks             |
-|--------------------------------------------------------|-------|--------|-------------------------|
-| sspanel-uim                                            | √     | √      | √ (تک پورت چند کاربره و V2ray-Plugin) |
-| v2board                                                | √     | √      | √                       |
-| [PMPanel](https://github.com/ByteInternetHK/PMPanel)   | √     | √      | √                       |
-| [ProxyPanel](https://github.com/ProxyPanel/ProxyPanel) | √     | √      | √                       |
-| [WHMCS (V2RaySocks)](https://v2raysocks.doxtex.com/)   | √     | √      | √                       |
-| [BunPanel](https://github.com/pennyMorant/bunpanel-release)   | √     | √      | √                       |
+این نسخه فقط آداپتور `sspanel-uim` را نگه می‌دارد.
 
 ## نصب نرم افزار
 
@@ -101,5 +94,4 @@ wget -N https://raw.githubusercontent.com/XrayR-project/XrayR-release/master/ins
 ## Stargazers over time
 
 [![Stargazers over time](https://starchart.cc/XrayR-project/XrayR.svg)](https://starchart.cc/XrayR-project/XrayR)
-
 

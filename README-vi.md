@@ -10,7 +10,7 @@
 
 [Iranian(farsi) README](https://github.com/XrayR-project/XrayR/blob/master/README_Fa.md), [Vietnamese(vi) README](https://github.com/XrayR-project/XrayR/blob/master/README-vi.md), [English(en) README](https://github.com/XrayR-project/XrayR/blob/master/README-en.md)
 
-A Xray backend framework that can easily support many panels.
+A Xray backend for SSPanel-UIM.
 
 Khung trở lại dựa trên XRay hỗ trợ các giao thức V2ay, Trojan, Shadowsocks, dễ dàng mở rộng và hỗ trợ kết nối nhiều người.
 
@@ -52,16 +52,9 @@ Dự án này chỉ là học tập và phát triển và bảo trì cá nhân c
 | Theo giới hạn tốc độ người dùng    | √     | √      | √           |
 | DNS tùy chỉnh    | √     | √      | √           |
 
-## Hỗ trợ Panel 
+## Panel được hỗ trợ
 
-| Panel                                                     | v2ray | trojan | shadowsocks             |
-|--------------------------------------------------------|-------|--------|-------------------------|
-| sspanel-uim                                            | √     | √      | √ (Nhiều người dùng cuối và v2ray-plugin) |
-| v2board                                                | √     | √      | √                       |
-| [PMPanel](https://github.com/ByteInternetHK/PMPanel)   | √     | √      | √                       |
-| [ProxyPanel](https://github.com/ProxyPanel/ProxyPanel) | √     | √      | √                       |
-| [WHMCS (V2RaySocks)](https://v2raysocks.doxtex.com/)   | √     | √      | √                       |
-| [BunPanel](https://github.com/pennyMorant/bunpanel-release)   | √     | √      | √                       |
+Mã nguồn này chỉ giữ lại bộ điều hợp `sspanel-uim`.
 
 ## Cài đặt phần mềm
 

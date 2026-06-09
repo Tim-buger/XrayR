@@ -11,9 +11,9 @@
 
 [English](https://github.com/XrayR-project/XrayR/blob/master/README-en.md)|[Iranian](https://github.com/XrayR-project/XrayR/blob/master/README_Fa.md)|[Vietnamese](https://github.com/XrayR-project/XrayR/blob/master/README-vi.md)
 
-A Xray backend framework that can easily support many panels.
+An Xray backend for SSPanel-UIM.
 
-一个基于Xray的后端框架，支持V2ay,Trojan,Shadowsocks协议，极易扩展，支持多面板对接。
+一个面向 SSPanel-UIM 的 Xray 后端，支持 V2Ray、Trojan、Shadowsocks 协议。
 
 如果您喜欢本项目，可以右上角点个star+watch，持续关注本项目的进展。
 
@@ -29,7 +29,7 @@ A Xray backend framework that can easily support many panels.
 * 永久开源且免费。
 * 支持V2ray，Trojan， Shadowsocks多种协议。
 * 支持Vless和XTLS等新特性。
-* 支持单实例对接多面板、多节点，无需重复启动。
+* 支持单实例对接多个 SSPanel-UIM 节点，无需重复启动。
 * 支持限制在线IP
 * 支持节点端口级别、用户级别限速。
 * 配置简单明了。
@@ -53,17 +53,10 @@ A Xray backend framework that can easily support many panels.
 | 按照用户限速    | √     | √      | √           |
 | 自定义DNS    | √     | √      | √           |
 
-## 支持前端
+## 支持面板
 
-| 前端                                                     | v2ray | trojan | shadowsocks             |
-|--------------------------------------------------------|-------|--------|-------------------------|
-| sspanel-uim                                            | √     | √      | √ (单端口多用户和V2ray-Plugin) |
-| v2board                                                | √     | √      | √                       |
-| [PMPanel](https://github.com/ByteInternetHK/PMPanel)   | √     | √      | √                       |
-| [ProxyPanel](https://github.com/ProxyPanel/ProxyPanel) | √     | √      | √                       |
-| [WHMCS (V2RaySocks)](https://v2raysocks.doxtex.com/)   | √     | √      | √                       |
-| [GoV2Panel](https://github.com/pingProMax/gov2panel)   | √     | √      | √                       |
-| [BunPanel](https://github.com/pennyMorant/bunpanel-release)   | √     | √      | √                       |
+当前源码仅保留 `sspanel-uim` 适配器，支持 V2Ray、Trojan 和 Shadowsocks
+（包括单端口多用户与 V2Ray-Plugin）节点。
 
 ## 软件安装
 
@@ -108,4 +101,3 @@ wget -N https://raw.githubusercontent.com/XrayR-project/XrayR-release/master/ins
 ## Stargazers over time
 
 [![Stargazers over time](https://starchart.cc/XrayR-project/XrayR.svg)](https://starchart.cc/XrayR-project/XrayR)
-
