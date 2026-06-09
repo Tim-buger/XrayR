@@ -1,5 +1,5 @@
-# 构建阶段：版本必须满足 go.mod 中的 Go 版本要求
-FROM golang:1.24-alpine AS builder
+# Build go
+FROM golang:1.25.3-alpine AS builder
 WORKDIR /app
 ENV CGO_ENABLED=0
 ARG GOPROXY=https://proxy.golang.org,direct

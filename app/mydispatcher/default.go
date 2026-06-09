@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/xtls/xray-core/app/dispatcher"
 	"github.com/xtls/xray-core/common"
 	"github.com/xtls/xray-core/common/buf"
 	"github.com/xtls/xray-core/common/errors"
@@ -96,8 +97,10 @@ func (r *cachedReader) Interrupt() {
 	r.reader.Interrupt()
 }
 
-// DefaultDispatcher is a default implementation of Dispatcher.
+// DefaultDispatcher is a custom implementation that embeds the official dispatcher
+// and adds XrayR-specific features like rate limiting and rule management.
 type DefaultDispatcher struct {
+	*dispatcher.DefaultDispatcher
 	ohm         outbound.Manager
 	router      routing.Router
 	policy      policy.Manager
@@ -111,11 +114,24 @@ type DefaultDispatcher struct {
 func init() {
 	// 注册到 xray-core 配置系统
 	common.Must(common.RegisterConfig((*Config)(nil), func(ctx context.Context, config interface{}) (interface{}, error) {
-		d := new(DefaultDispatcher)
+		// First create the official dispatcher
+		officialDispatcher := new(dispatcher.DefaultDispatcher)
+		d := &DefaultDispatcher{
+			DefaultDispatcher: officialDispatcher,
+		}
+
 		if err := core.RequireFeatures(ctx, func(om outbound.Manager, router routing.Router, pm policy.Manager, sm stats.Manager, dc dns.Client) error {
 			core.OptionalFeatures(ctx, func(fdns dns.FakeDNSEngine) {
 				d.fdns = fdns
 			})
+			// Initialize the official dispatcher with an empty config
+			dispatcherConfig := &dispatcher.Config{
+				Settings: &dispatcher.SessionConfig{},
+			}
+			if err := officialDispatcher.Init(dispatcherConfig, om, router, pm, sm); err != nil {
+				return err
+			}
+			// Initialize our custom fields
 			return d.Init(config.(*Config), om, router, pm, sm, dc)
 		}); err != nil {
 			return nil, err
@@ -137,9 +153,9 @@ func (d *DefaultDispatcher) Init(config *Config, om outbound.Manager, router rou
 	return nil
 }
 
-// Type implements common.HasType.
+// Type implements common.HasType for registering as a separate feature, not overriding core dispatcher.
 func (*DefaultDispatcher) Type() interface{} {
-	return routing.DispatcherType()
+	return Type()
 }
 
 // Start implements common.Runnable.
@@ -171,8 +187,10 @@ func (d *DefaultDispatcher) getLink(ctx context.Context) (*transport.Link, *tran
 	sessionInbound := session.InboundFromContext(ctx)
 	var user *protocol.MemoryUser
 	if sessionInbound != nil {
+		// 禁用拼接以避免绕过 Vision/REALITY 的统计路径
 		sessionInbound.CanSpliceCopy = 3
 		user = sessionInbound.User
+		sessionInbound.CanSpliceCopy = 3
 	}
 
 	if user != nil && len(user.Email) > 0 {
@@ -402,20 +420,24 @@ func sniffer(ctx context.Context, cReader *cachedReader, metadataOnly bool, netw
 
 func (d *DefaultDispatcher) routedDispatch(ctx context.Context, link *transport.Link, destination net.Destination) {
 	// 具体路由选择与出站派发
-	outbounds := session.OutboundsFromContext(ctx)
-	ob := outbounds[len(outbounds)-1]
-	if hosts, ok := d.dns.(dns.HostsLookup); ok && destination.Address.Family().IsDomain() {
-		proxied := hosts.LookupHosts(ob.Target.String())
-		if proxied != nil {
-			ro := ob.RouteTarget == destination
-			destination.Address = *proxied
-			if ro {
-				ob.RouteTarget = destination
-			} else {
-				ob.Target = destination
-			}
-		}
-	}
+	//outbounds := session.OutboundsFromContext(ctx)
+	//ob := outbounds[len(outbounds)-1]
+	//if hosts, ok := d.dns.(dns.HostsLookup); ok && destination.Address.Family().IsDomain() {
+	//	proxied := hosts.LookupHosts(ob.Target.String())
+	//	if proxied != nil {
+	//		ro := ob.RouteTarget == destination
+	//		destination.Address = *proxied
+	//		if ro {
+	//			ob.RouteTarget = destination
+	//		} else {
+	//			ob.Target = destination
+	//		}
+	//	}
+	//}
+	// 注意：dns.HostsLookup 接口已在 Xray-core v25.10.15 中删除
+	// 主机查找功能现在由 DNS 客户端在内部处理
+	// 为了保持兼容性，之前的主机查找代码已被删除
+	// 使用新的 Xray-core 版本
 
 	var handler outbound.Handler
 
