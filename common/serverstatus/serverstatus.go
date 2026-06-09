@@ -1,7 +1,8 @@
-// Package serverstatus generate the server system status
+// Package serverstatus 采集服务器系统状态
 package serverstatus
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/shirou/gopsutil/v3/cpu"
@@ -10,13 +11,14 @@ import (
 	"github.com/shirou/gopsutil/v3/mem"
 )
 
-// GetSystemInfo get the system info of a given periodic
+// GetSystemInfo 获取 CPU/内存/磁盘/运行时长
 func GetSystemInfo() (Cpu float64, Mem float64, Disk float64, Uptime uint64, err error) {
 
 	errorString := ""
 
 	cpuPercent, err := cpu.Percent(0, false)
-	// Check if cpuPercent is empty
+	// cpu.Percent 返回多个 CPU 的使用率，这里取总平均
+	// 返回值为空或采集失败时，将 CPU 使用率记为 0 并汇总错误。
 	if len(cpuPercent) > 0 && err == nil {
 		Cpu = cpuPercent[0]
 	} else {
@@ -46,7 +48,7 @@ func GetSystemInfo() (Cpu float64, Mem float64, Disk float64, Uptime uint64, err
 	}
 
 	if errorString != "" {
-		err = fmt.Errorf(errorString)
+		err = errors.New(errorString)
 	}
 
 	return Cpu, Mem, Disk, Uptime, err

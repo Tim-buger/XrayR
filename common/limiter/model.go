@@ -1,6 +1,7 @@
 package limiter
 
 type GlobalDeviceLimitConfig struct {
+	// 全局设备数限制配置（依赖 Redis，可跨进程统计）
 	Enable        bool   `mapstructure:"Enable"`
 	RedisNetwork  string `mapstructure:"RedisNetwork"` // tcp or unix
 	RedisAddr     string `mapstructure:"RedisAddr"`    // host:port, or /path/to/unix.sock

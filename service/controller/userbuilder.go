@@ -28,6 +28,7 @@ var AEADMethod = map[shadowsocks.CipherType]uint8{
 }
 
 func (c *Controller) buildVmessUser(userInfo *[]api.UserInfo) (users []*protocol.User) {
+	// 生成 vmess 用户列表
 	users = make([]*protocol.User, len(*userInfo))
 	for i, user := range *userInfo {
 		vmessAccount := &conf.VMessAccount{
@@ -44,6 +45,7 @@ func (c *Controller) buildVmessUser(userInfo *[]api.UserInfo) (users []*protocol
 }
 
 func (c *Controller) buildVlessUser(userInfo *[]api.UserInfo) (users []*protocol.User) {
+	// 生成 vless 用户列表
 	users = make([]*protocol.User, len(*userInfo))
 	for i, user := range *userInfo {
 		vlessAccount := &vless.Account{
@@ -60,6 +62,7 @@ func (c *Controller) buildVlessUser(userInfo *[]api.UserInfo) (users []*protocol
 }
 
 func (c *Controller) buildTrojanUser(userInfo *[]api.UserInfo) (users []*protocol.User) {
+	// 生成 trojan 用户列表
 	users = make([]*protocol.User, len(*userInfo))
 	for i, user := range *userInfo {
 		trojanAccount := &trojan.Account{
@@ -75,10 +78,11 @@ func (c *Controller) buildTrojanUser(userInfo *[]api.UserInfo) (users []*protoco
 }
 
 func (c *Controller) buildSSUser(userInfo *[]api.UserInfo, method string) (users []*protocol.User) {
+	// 生成 shadowsocks 用户列表
 	users = make([]*protocol.User, len(*userInfo))
 
 	for i, user := range *userInfo {
-		// shadowsocks2022 Key = "openssl rand -base64 32" and multi users needn't cipher method
+		// Shadowsocks 2022 使用 base64 密钥，多用户账号不再单独指定加密方法。
 		if C.Contains(shadowaead_2022.List, strings.ToLower(method)) {
 			e := c.buildUserTag(&user)
 			userKey, err := c.checkShadowsocksPassword(user.Passwd, method)
@@ -90,7 +94,7 @@ func (c *Controller) buildSSUser(userInfo *[]api.UserInfo, method string) (users
 				Level: 0,
 				Email: e,
 				Account: serial.ToTypedMessage(&shadowsocks_2022.Account{
-					Key:   userKey,
+					Key: userKey,
 				}),
 			}
 		} else {
@@ -108,10 +112,11 @@ func (c *Controller) buildSSUser(userInfo *[]api.UserInfo, method string) (users
 }
 
 func (c *Controller) buildSSPluginUser(userInfo *[]api.UserInfo) (users []*protocol.User) {
+	// 生成 shadowsocks 插件用户列表
 	users = make([]*protocol.User, len(*userInfo))
 
 	for i, user := range *userInfo {
-		// shadowsocks2022 Key = openssl rand -base64 32 and multi users needn't cipher method
+		// Shadowsocks 2022 使用 base64 密钥，多用户账号不再单独指定加密方法。
 		if C.Contains(shadowaead_2022.List, strings.ToLower(user.Method)) {
 			e := c.buildUserTag(&user)
 			userKey, err := c.checkShadowsocksPassword(user.Passwd, user.Method)
@@ -123,11 +128,11 @@ func (c *Controller) buildSSPluginUser(userInfo *[]api.UserInfo) (users []*proto
 				Level: 0,
 				Email: e,
 				Account: serial.ToTypedMessage(&shadowsocks_2022.Account{
-					Key:   userKey,
+					Key: userKey,
 				}),
 			}
 		} else {
-			// Check if the cypher method is AEAD
+			// 只有受支持的 AEAD 加密方法才能创建传统 Shadowsocks 用户。
 			cypherMethod := cipherFromString(user.Method)
 			if _, ok := AEADMethod[cypherMethod]; ok {
 				users[i] = &protocol.User{
@@ -145,6 +150,7 @@ func (c *Controller) buildSSPluginUser(userInfo *[]api.UserInfo) (users []*proto
 }
 
 func cipherFromString(c string) shadowsocks.CipherType {
+	// cipher 字符串映射到枚举
 	switch strings.ToLower(c) {
 	case "aes-128-gcm", "aead_aes_128_gcm":
 		return shadowsocks.CipherType_AES_128_GCM
@@ -160,10 +166,12 @@ func cipherFromString(c string) shadowsocks.CipherType {
 }
 
 func (c *Controller) buildUserTag(user *api.UserInfo) string {
+	// 用户标识：InboundTag|email|uid
 	return fmt.Sprintf("%s|%s|%d", c.Tag, user.Email, user.UID)
 }
 
 func (c *Controller) checkShadowsocksPassword(password string, method string) (string, error) {
+	// v2board 面板下 shadowsocks2022 的 key 需要截断并 base64
 	if strings.Contains(c.panelType, "V2board") {
 		var userKey string
 		if len(password) < 16 {

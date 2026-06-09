@@ -3,6 +3,7 @@ package bunpanel
 import "encoding/json"
 
 type Server struct {
+	// 节点配置
 	Port int `json:"serverPort"`
 	Network string `json:"network"`
 	Method string `json:"method"`
@@ -15,6 +16,7 @@ type Server struct {
 }
 
 type WsSettings struct {
+	// WebSocket 配置
 	Path string `json:"path"`
 	Headers struct {
 		Host string `json:"Host"`
@@ -22,14 +24,17 @@ type WsSettings struct {
 }
 
 type GrpcSettigns struct {
+	// gRPC 配置
 	ServiceName string `json:"serviceName"`
 }
 
 type TcpSettings struct {
+	// TCP 头部配置
 	Header json.RawMessage `json:"header"`
 }
 
 type RealitySettings struct {
+	// REALITY 配置
 	Show    bool            `json:"show"`
 	Dest    string          `json:"dest"`
 	Xver 	uint64 			`json:"xver"`
@@ -43,6 +48,7 @@ type RealitySettings struct {
 }
 
 type User struct {
+	// 用户下发信息
 	ID int `json:"id"`
 	UUID string `json:"uuid"`
 	SpeedLimit float64 `json:"speedLimit"`
@@ -51,6 +57,7 @@ type User struct {
 }
 
 type OnlineUser struct {
+	// 在线用户信息
 	UID int    `json:"userId"`
 	IP  string `json:"ip"`
 }
@@ -63,10 +70,12 @@ type UserTraffic struct {
 }
 
 type Response struct {
+	// 通用响应结构
 	StatusCode int `json:"statusCode"`
 	Datas json.RawMessage `json:"datas"`
 }
 
 type PostData struct {
+	// 通用提交结构
 	Data interface{} `json:"data"`
 }

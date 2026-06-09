@@ -14,6 +14,7 @@ import (
 
 // newFakeDNSSniffer Create a Fake DNS metadata sniffer
 func newFakeDNSSniffer(ctx context.Context) (protocolSnifferWithMetadata, error) {
+	// 从上下文获取 FakeDNS 引擎
 	var fakeDNSEngine dns.FakeDNSEngine
 	{
 		fakeDNSEngineFeat := core.MustFromContext(ctx).GetFeature((*dns.FakeDNSEngine)(nil))
@@ -27,6 +28,7 @@ func newFakeDNSSniffer(ctx context.Context) (protocolSnifferWithMetadata, error)
 		return protocolSnifferWithMetadata{}, errNotInit
 	}
 	return protocolSnifferWithMetadata{protocolSniffer: func(ctx context.Context, bytes []byte) (SniffResult, error) {
+		// 通过 FakeDNS 映射 IP -> 域名
 		outbounds := session.OutboundsFromContext(ctx)
 		ob := outbounds[len(outbounds)-1]
 		Target := ob.Target
@@ -41,6 +43,7 @@ func newFakeDNSSniffer(ctx context.Context) (protocolSnifferWithMetadata, error)
 		if ipAddressInRangeValueI := ctx.Value(ipAddressInRange); ipAddressInRangeValueI != nil {
 			ipAddressInRangeValue := ipAddressInRangeValueI.(*ipAddressInRangeOpt)
 			if fkr0, ok := fakeDNSEngine.(dns.FakeDNSEngineRev0); ok {
+				// 标记 IP 是否在 FakeDNS 池中
 				inPool := fkr0.IsIPInIPPool(Target.Address)
 				ipAddressInRangeValue.addressInRange = &inPool
 			}
@@ -93,6 +96,7 @@ func newFakeDNSThenOthers(ctx context.Context, fakeDNSSniffer protocolSnifferWit
 	_ = ctx
 	return protocolSnifferWithMetadata{
 		protocolSniffer: func(ctx context.Context, bytes []byte) (SniffResult, error) {
+			// 先尝试 FakeDNS，再尝试其它协议嗅探
 			ipAddressInRangeValue := &ipAddressInRangeOpt{}
 			ctx = context.WithValue(ctx, ipAddressInRange, ipAddressInRangeValue)
 			result, err := fakeDNSSniffer.protocolSniffer(ctx, bytes)

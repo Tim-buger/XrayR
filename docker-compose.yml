@@ -1,0 +1,28 @@
+services:
+  xrayr:
+    build:
+      context: .
+      args:
+        GOPROXY: ${GOPROXY:-https://proxy.golang.org,direct}
+    image: xrayr-local:latest
+    container_name: xrayr
+    restart: unless-stopped
+    init: true
+
+    # 节点端口由面板动态下发。Linux 使用 host 网络后无需在此逐个映射端口。
+    network_mode: host
+
+    environment:
+      TZ: ${TZ:-Asia/Shanghai}
+    volumes:
+      # config.yml、geo 数据、规则文件和自动申请的证书都保存在宿主机。
+      - ./release/config:/etc/XrayR
+    ulimits:
+      nofile:
+        soft: 1000000
+        hard: 1000000
+    logging:
+      driver: json-file
+      options:
+        max-size: 20m
+        max-file: "3"

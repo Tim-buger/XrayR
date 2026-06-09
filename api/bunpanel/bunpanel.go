@@ -21,6 +21,7 @@ import (
 )
 
 type APIClient struct {
+	// bunpanel 面板 API 客户端
 	client           *resty.Client
 	APIHost          string
 	NodeID           int
@@ -38,21 +39,25 @@ type APIClient struct {
 
 // ReportIllegal implements api.API.
 func (*APIClient) ReportIllegal(detectResultList *[]api.DetectResult) (err error) {
+	// bunpanel 暂不支持违规上报
 	return nil
 }
 
 // ReportNodeStatus implements api.API.
 func (*APIClient) ReportNodeStatus(nodeStatus *api.NodeStatus) (err error) {
+	// bunpanel 暂不支持节点状态上报
 	return nil
 }
 
 // GetNodeRule implements api.API.
 func (c *APIClient) GetNodeRule() (*[]api.DetectRule, error) {
+	// bunpanel 仅使用本地规则
 	ruleList := c.LocalRuleList
 	return &ruleList, nil
 }
 
 func New(apiConfig *api.Config) *APIClient {
+	// 创建 bunpanel API 客户端
 	client := resty.New()
 	client.SetRetryCount(3)
 	if apiConfig.Timeout > 0 {
@@ -92,7 +97,7 @@ func New(apiConfig *api.Config) *APIClient {
 	return apiClient
 }
 
-// readLocalRuleList reads the local rule list file
+// readLocalRuleList 读取本地规则文件
 func readLocalRuleList(path string) (LocalRuleList []api.DetectRule) {
 	LocalRuleList = make([]api.DetectRule, 0)
 

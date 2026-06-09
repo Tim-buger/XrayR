@@ -18,7 +18,7 @@ import (
 	"github.com/xtls/xray-core/infra/conf"
 )
 
-// APIClient API config
+// APIClient GoV2Panel 面板 API 客户端
 type APIClient struct {
 	ctx                 context.Context
 	APIHost             string
@@ -36,7 +36,7 @@ type APIClient struct {
 	LocalRuleList []api.DetectRule
 }
 
-// New create an api instance
+// New 创建 GoV2Panel API 客户端
 func New(apiConfig *api.Config) *APIClient {
 
 	//https://goframe.org/pages/viewpage.action?pageId=1114381
@@ -54,12 +54,12 @@ func New(apiConfig *api.Config) *APIClient {
 		RuleListPath:        apiConfig.RuleListPath,
 		DisableCustomConfig: apiConfig.DisableCustomConfig,
 
-		LocalRuleList: readLocalRuleList(apiConfig.RuleListPath), //加载本地路由规则
+		LocalRuleList: readLocalRuleList(apiConfig.RuleListPath), // 加载本地路由规则
 	}
 	return apiClient
 }
 
-// readLocalRuleList reads the local rule list file
+// readLocalRuleList 读取本地规则文件
 func readLocalRuleList(path string) (LocalRuleList []api.DetectRule) {
 
 	LocalRuleList = make([]api.DetectRule, 0)

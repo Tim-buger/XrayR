@@ -6,27 +6,37 @@ import (
 )
 
 type Config struct {
+	// 监听与发送相关配置
 	ListenIP                  string                           `mapstructure:"ListenIP"`
 	SendIP                    string                           `mapstructure:"SendIP"`
+	// 定时更新间隔（秒）
 	UpdatePeriodic            int                              `mapstructure:"UpdatePeriodic"`
+	// 证书管理（acme/自签/文件）
 	CertConfig                *mylego.CertConfig               `mapstructure:"CertConfig"`
+	// DNS 解析策略
 	EnableDNS                 bool                             `mapstructure:"EnableDNS"`
 	DNSType                   string                           `mapstructure:"DNSType"`
+	// 行为开关
 	DisableUploadTraffic      bool                             `mapstructure:"DisableUploadTraffic"`
 	DisableGetRule            bool                             `mapstructure:"DisableGetRule"`
 	EnableProxyProtocol       bool                             `mapstructure:"EnableProxyProtocol"`
 	EnableFallback            bool                             `mapstructure:"EnableFallback"`
 	DisableIVCheck            bool                             `mapstructure:"DisableIVCheck"`
 	DisableSniffing           bool                             `mapstructure:"DisableSniffing"`
+	// 自动限速
 	AutoSpeedLimitConfig      *AutoSpeedLimitConfig            `mapstructure:"AutoSpeedLimitConfig"`
+	// 设备数限制（支持全局限制）
 	GlobalDeviceLimitConfig   *limiter.GlobalDeviceLimitConfig `mapstructure:"GlobalDeviceLimitConfig"`
+	// VLESS/Trojan fallback
 	FallBackConfigs           []*FallBackConfig                `mapstructure:"FallBackConfigs"`
+	// REALITY 开关与配置
 	DisableLocalREALITYConfig bool                             `mapstructure:"DisableLocalREALITYConfig"`
 	EnableREALITY             bool                             `mapstructure:"EnableREALITY"`
 	REALITYConfigs            *REALITYConfig                   `mapstructure:"REALITYConfigs"`
 }
 
 type AutoSpeedLimitConfig struct {
+	// 用户超速判定与限速策略
 	Limit         int `mapstructure:"Limit"` // mbps
 	WarnTimes     int `mapstructure:"WarnTimes"`
 	LimitSpeed    int `mapstructure:"LimitSpeed"`    // mbps
@@ -34,6 +44,7 @@ type AutoSpeedLimitConfig struct {
 }
 
 type FallBackConfig struct {
+	// Fallback 匹配条件与转发目标
 	SNI              string `mapstructure:"SNI"`
 	Alpn             string `mapstructure:"Alpn"`
 	Path             string `mapstructure:"Path"`
@@ -42,6 +53,7 @@ type FallBackConfig struct {
 }
 
 type REALITYConfig struct {
+	// REALITY 协议相关参数
 	Show             bool     `mapstructure:"Show"`
 	Dest             string   `mapstructure:"Dest"`
 	ProxyProtocolVer uint64   `mapstructure:"ProxyProtocolVer"`

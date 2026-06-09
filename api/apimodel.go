@@ -13,7 +13,7 @@ const (
 	RuleNotModified = "rules not modified"
 )
 
-// Config API config
+// Config API 配置（来自配置文件）
 type Config struct {
 	APIHost             string  `mapstructure:"ApiHost"`
 	NodeID              int     `mapstructure:"NodeID"`
@@ -28,7 +28,7 @@ type Config struct {
 	DisableCustomConfig bool    `mapstructure:"DisableCustomConfig"`
 }
 
-// NodeStatus Node status
+// NodeStatus 节点状态上报
 type NodeStatus struct {
 	CPU    float64
 	Mem    float64
@@ -37,6 +37,7 @@ type NodeStatus struct {
 }
 
 type NodeInfo struct {
+	// 节点配置（由面板下发）
 	AcceptProxyProtocol bool
 	Authority           string
 	NodeType            string // Must be V2ray, Trojan, and Shadowsocks
@@ -81,6 +82,7 @@ type NodeInfo struct {
 }
 
 type UserInfo struct {
+	// 用户配置信息
 	UID         int
 	Email       string
 	UUID        string
@@ -93,11 +95,13 @@ type UserInfo struct {
 }
 
 type OnlineUser struct {
+	// 在线设备信息
 	UID int
 	IP  string
 }
 
 type UserTraffic struct {
+	// 用户流量上报
 	UID      int
 	Email    string
 	Upload   int64
@@ -105,6 +109,7 @@ type UserTraffic struct {
 }
 
 type ClientInfo struct {
+	// API 客户端描述
 	APIHost  string
 	NodeID   int
 	Key      string
@@ -112,16 +117,19 @@ type ClientInfo struct {
 }
 
 type DetectRule struct {
+	// 审计规则
 	ID      int
 	Pattern *regexp.Regexp
 }
 
 type DetectResult struct {
+	// 违规命中记录
 	UID    int
 	RuleID int
 }
 
 type REALITYConfig struct {
+	// REALITY 配置（由面板下发）
 	Dest             string
 	ProxyProtocolVer uint64
 	ServerNames      []string

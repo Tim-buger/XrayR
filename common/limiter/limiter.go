@@ -1,4 +1,4 @@
-// Package limiter is to control the links that go into the dispatcher
+// Package limiter 用于控制连接限速与在线设备数
 package limiter
 
 import (
@@ -23,12 +23,14 @@ import (
 )
 
 type UserInfo struct {
+	// 用户限速与设备数配置
 	UID         int
 	SpeedLimit  uint64
 	DeviceLimit int
 }
 
 type InboundInfo struct {
+	// 每个入站的限速与在线状态
 	Tag            string
 	NodeSpeedLimit uint64
 	UserInfo       *sync.Map // Key: Email value: UserInfo
@@ -41,16 +43,19 @@ type InboundInfo struct {
 }
 
 type Limiter struct {
+	// 所有入站的限速集合
 	InboundInfo *sync.Map // Key: Tag, Value: *InboundInfo
 }
 
 func New() *Limiter {
+	// 构造限速器
 	return &Limiter{
 		InboundInfo: new(sync.Map),
 	}
 }
 
 func (l *Limiter) AddInboundLimiter(tag string, nodeSpeedLimit uint64, userList *[]api.UserInfo, globalLimit *GlobalDeviceLimitConfig) error {
+	// 初始化某个入站的限速数据
 	inboundInfo := &InboundInfo{
 		Tag:            tag,
 		NodeSpeedLimit: nodeSpeedLimit,
@@ -59,6 +64,7 @@ func (l *Limiter) AddInboundLimiter(tag string, nodeSpeedLimit uint64, userList 
 	}
 
 	if globalLimit != nil && globalLimit.Enable {
+		// 启用全局设备数限制（本地缓存 + Redis）
 		inboundInfo.GlobalLimit.config = globalLimit
 
 		// init local store
@@ -97,6 +103,7 @@ func (l *Limiter) AddInboundLimiter(tag string, nodeSpeedLimit uint64, userList 
 }
 
 func (l *Limiter) UpdateInboundLimiter(tag string, updatedUserList *[]api.UserInfo) error {
+	// 更新入站用户限速配置
 	if value, ok := l.InboundInfo.Load(tag); ok {
 		inboundInfo := value.(*InboundInfo)
 		// Update User info
@@ -107,6 +114,7 @@ func (l *Limiter) UpdateInboundLimiter(tag string, updatedUserList *[]api.UserIn
 				DeviceLimit: u.DeviceLimit,
 			})
 			// Update old limiter bucket
+			// 根据新速度限制调整桶
 			limit := determineRate(inboundInfo.NodeSpeedLimit, u.SpeedLimit)
 			if limit > 0 {
 				if bucket, ok := inboundInfo.BucketHub.Load(fmt.Sprintf("%s|%s|%d", tag, u.Email, u.UID)); ok {
@@ -125,11 +133,13 @@ func (l *Limiter) UpdateInboundLimiter(tag string, updatedUserList *[]api.UserIn
 }
 
 func (l *Limiter) DeleteInboundLimiter(tag string) error {
+	// 删除入站限速配置
 	l.InboundInfo.Delete(tag)
 	return nil
 }
 
 func (l *Limiter) GetOnlineDevice(tag string) (*[]api.OnlineUser, error) {
+	// 获取在线设备列表并清理缓存
 	var onlineUser []api.OnlineUser
 
 	if value, ok := l.InboundInfo.Load(tag); ok {
@@ -162,6 +172,7 @@ func (l *Limiter) GetOnlineDevice(tag string) (*[]api.OnlineUser, error) {
 }
 
 func (l *Limiter) GetUserBucket(tag string, email string, ip string) (limiter *rate.Limiter, SpeedLimit bool, Reject bool) {
+	// 获取用户速率桶并执行设备数限制
 	if value, ok := l.InboundInfo.Load(tag); ok {
 		var (
 			userLimit        uint64 = 0

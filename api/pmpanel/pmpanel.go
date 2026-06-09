@@ -17,7 +17,7 @@ import (
 	"github.com/XrayR-project/XrayR/api"
 )
 
-// APIClient create a api client to the panel.
+// APIClient PMPanel 面板 API 客户端
 type APIClient struct {
 	client        *resty.Client
 	APIHost       string
@@ -31,7 +31,7 @@ type APIClient struct {
 	LocalRuleList []api.DetectRule
 }
 
-// New creat a api instance
+// New 创建 PMPanel API 客户端
 func New(apiConfig *api.Config) *APIClient {
 
 	client := resty.New()
@@ -70,7 +70,7 @@ func New(apiConfig *api.Config) *APIClient {
 	return apiClient
 }
 
-// readLocalRuleList reads the local rule list file
+// readLocalRuleList 读取本地规则文件
 func readLocalRuleList(path string) (LocalRuleList []api.DetectRule) {
 
 	LocalRuleList = make([]api.DetectRule, 0)
@@ -105,17 +105,18 @@ func readLocalRuleList(path string) (LocalRuleList []api.DetectRule) {
 	return LocalRuleList
 }
 
-// Describe return a description of the client
+// Describe 返回客户端描述信息
 func (c *APIClient) Describe() api.ClientInfo {
 	return api.ClientInfo{APIHost: c.APIHost, NodeID: c.NodeID, Key: c.Key, NodeType: c.NodeType}
 }
 
-// Debug set the client debug for client
+// Debug 打开 HTTP 调试日志
 func (c *APIClient) Debug() {
 	c.client.SetDebug(true)
 }
 
 func (c *APIClient) assembleURL(path string) string {
+	// 拼接完整 URL
 	return c.APIHost + path
 }
 

@@ -6,6 +6,7 @@ import (
 )
 
 type Config struct {
+	// 全局配置
 	LogConfig          *LogConfig        `mapstructure:"Log"`
 	DnsConfigPath      string            `mapstructure:"DnsConfigPath"`
 	InboundConfigPath  string            `mapstructure:"InboundConfigPath"`
@@ -16,18 +17,21 @@ type Config struct {
 }
 
 type NodesConfig struct {
+	// 单个面板节点配置
 	PanelType        string             `mapstructure:"PanelType"`
 	ApiConfig        *api.Config        `mapstructure:"ApiConfig"`
 	ControllerConfig *controller.Config `mapstructure:"ControllerConfig"`
 }
 
 type LogConfig struct {
+	// 日志配置
 	Level      string `mapstructure:"Level"`
 	AccessPath string `mapstructure:"AccessPath"`
 	ErrorPath  string `mapstructure:"ErrorPath"`
 }
 
 type ConnectionConfig struct {
+	// 连接策略配置
 	Handshake    uint32 `mapstructure:"handshake"`
 	ConnIdle     uint32 `mapstructure:"connIdle"`
 	UplinkOnly   uint32 `mapstructure:"uplinkOnly"`

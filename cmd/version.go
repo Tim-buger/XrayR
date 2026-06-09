@@ -13,6 +13,7 @@ var (
 )
 
 func init() {
+	// 注册子命令：输出版本信息
 	rootCmd.AddCommand(&cobra.Command{
 		Use:   "version",
 		Short: "Print current version of XrayR",
@@ -23,5 +24,6 @@ func init() {
 }
 
 func showVersion() {
+	// 统一版本输出格式
 	fmt.Printf("%s %s (%s) \n", codename, version, intro)
 }

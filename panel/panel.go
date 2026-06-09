@@ -28,7 +28,7 @@ import (
 	"github.com/XrayR-project/XrayR/service/controller"
 )
 
-// Panel Structure
+// Panel 负责加载 core、初始化各面板 API 与控制器
 type Panel struct {
 	access      sync.Mutex
 	panelConfig *Config
@@ -38,12 +38,14 @@ type Panel struct {
 }
 
 func New(panelConfig *Config) *Panel {
+	// 创建面板实例
 	p := &Panel{panelConfig: panelConfig}
 	return p
 }
 
 func (p *Panel) loadCore(panelConfig *Config) *core.Instance {
-	// Log Config
+	// 根据配置构建并启动 xray-core 实例
+	// 日志配置
 	coreLogConfig := &conf.LogConfig{}
 	logConfig := getDefaultLogConfig()
 	if panelConfig.LogConfig != nil {
@@ -55,7 +57,7 @@ func (p *Panel) loadCore(panelConfig *Config) *core.Instance {
 	coreLogConfig.AccessLog = logConfig.AccessPath
 	coreLogConfig.ErrorLog = logConfig.ErrorPath
 
-	// DNS config
+	// 读取 DNS 配置文件
 	coreDnsConfig := &conf.DNSConfig{}
 	if panelConfig.DnsConfigPath != "" {
 		if data, err := os.ReadFile(panelConfig.DnsConfigPath); err != nil {
@@ -67,7 +69,7 @@ func (p *Panel) loadCore(panelConfig *Config) *core.Instance {
 		}
 	}
 
-	// init controller's DNS config
+	// 预留：把 DNS 配置同步给每个控制器。
 	// for _, config := range p.panelConfig.NodesConfig {
 	// 	config.ControllerConfig.DNSConfig = coreDnsConfig
 	// }
@@ -77,7 +79,7 @@ func (p *Panel) loadCore(panelConfig *Config) *core.Instance {
 		log.Panicf("Failed to understand DNS config, Please check: https://xtls.github.io/config/dns.html for help: %s", err)
 	}
 
-	// Routing config
+	// 读取路由配置文件
 	coreRouterConfig := &conf.RouterConfig{}
 	if panelConfig.RouteConfigPath != "" {
 		if data, err := os.ReadFile(panelConfig.RouteConfigPath); err != nil {
@@ -92,7 +94,7 @@ func (p *Panel) loadCore(panelConfig *Config) *core.Instance {
 	if err != nil {
 		log.Panicf("Failed to understand Routing config  Please check: https://xtls.github.io/config/routing.html for help: %s", err)
 	}
-	// Custom Inbound config
+	// 读取自定义入站配置
 	var coreCustomInboundConfig []conf.InboundDetourConfig
 	if panelConfig.InboundConfigPath != "" {
 		if data, err := os.ReadFile(panelConfig.InboundConfigPath); err != nil {
@@ -111,7 +113,7 @@ func (p *Panel) loadCore(panelConfig *Config) *core.Instance {
 		}
 		inBoundConfig = append(inBoundConfig, oc)
 	}
-	// Custom Outbound config
+	// 读取自定义出站配置
 	var coreCustomOutboundConfig []conf.OutboundDetourConfig
 	if panelConfig.OutboundConfigPath != "" {
 		if data, err := os.ReadFile(panelConfig.OutboundConfigPath); err != nil {
@@ -130,12 +132,12 @@ func (p *Panel) loadCore(panelConfig *Config) *core.Instance {
 		}
 		outBoundConfig = append(outBoundConfig, oc)
 	}
-	// Policy config
+	// 连接策略与统计配置
 	levelPolicyConfig := parseConnectionConfig(panelConfig.ConnectionConfig)
 	corePolicyConfig := &conf.PolicyConfig{}
 	corePolicyConfig.Levels = map[uint32]*conf.Policy{0: levelPolicyConfig}
 	policyConfig, _ := corePolicyConfig.Build()
-	// Build Core Config
+	// 汇总各模块，创建不含面板动态节点的基础 core 配置。
 	config := &core.Config{
 		App: []*serial.TypedMessage{
 			serial.ToTypedMessage(coreLogConfig.Build()),
@@ -158,19 +160,19 @@ func (p *Panel) loadCore(panelConfig *Config) *core.Instance {
 	return server
 }
 
-// Start the panel
+// Start 启动 xray-core，并为配置中的每个节点启动一个控制器。
 func (p *Panel) Start() {
 	p.access.Lock()
 	defer p.access.Unlock()
 	log.Print("Start the panel..")
-	// Load Core
+	// 启动 xray-core
 	server := p.loadCore(p.panelConfig)
 	if err := server.Start(); err != nil {
 		log.Panicf("Failed to start instance: %s", err)
 	}
 	p.Server = server
 
-	// Load Nodes config
+	// 逐节点加载 API 客户端与控制器
 	for _, nodeConfig := range p.panelConfig.NodesConfig {
 		var apiClient api.API
 		switch nodeConfig.PanelType {
@@ -192,7 +194,7 @@ func (p *Panel) Start() {
 			log.Panicf("Unsupport panel type: %s", nodeConfig.PanelType)
 		}
 		var controllerService service.Service
-		// Register controller service
+		// 构建并注册 controller 服务
 		controllerConfig := getDefaultControllerConfig()
 		if nodeConfig.ControllerConfig != nil {
 			if err := mergo.Merge(controllerConfig, nodeConfig.ControllerConfig, mergo.WithOverride); err != nil {
@@ -204,7 +206,7 @@ func (p *Panel) Start() {
 
 	}
 
-	// Start all the service
+	// 启动所有服务
 	for _, s := range p.Service {
 		err := s.Start()
 		if err != nil {
@@ -215,8 +217,9 @@ func (p *Panel) Start() {
 	return
 }
 
-// Close the panel
+// Close 关闭所有控制器和 xray-core。
 func (p *Panel) Close() {
+	// 关闭所有服务与 core
 	p.access.Lock()
 	defer p.access.Unlock()
 	for _, s := range p.Service {
@@ -232,6 +235,7 @@ func (p *Panel) Close() {
 }
 
 func parseConnectionConfig(c *ConnectionConfig) (policy *conf.Policy) {
+	// 连接策略配置（合并默认值）
 	connectionConfig := getDefaultConnectionConfig()
 	if c != nil {
 		if _, err := diff.Merge(connectionConfig, c, connectionConfig); err != nil {

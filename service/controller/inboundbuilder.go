@@ -1,4 +1,4 @@
-// Package controller Package generate the InboundConfig used by add inbound
+// Package controller 根据面板数据生成并维护 xray-core 的运行时配置。
 package controller
 
 import (
@@ -19,26 +19,26 @@ import (
 	"github.com/XrayR-project/XrayR/common/mylego"
 )
 
-// InboundBuilder build Inbound config for different protocol
+// InboundBuilder 根据节点协议生成 xray-core 入站配置。
 func InboundBuilder(config *Config, nodeInfo *api.NodeInfo, tag string) (*core.InboundHandlerConfig, error) {
 	inboundDetourConfig := &conf.InboundDetourConfig{}
-	// Build Listen IP address
+	// 构建监听地址
 	if nodeInfo.NodeType == "Shadowsocks-Plugin" {
-		// Shdowsocks listen in 127.0.0.1 for safety
+		// 插件模式的底层 Shadowsocks 只监听回环地址，避免被公网直接访问。
 		inboundDetourConfig.ListenOn = &conf.Address{Address: net.ParseAddress("127.0.0.1")}
 	} else if config.ListenIP != "" {
 		ipAddress := net.ParseAddress(config.ListenIP)
 		inboundDetourConfig.ListenOn = &conf.Address{Address: ipAddress}
 	}
 
-	// Build Port
+	// 构建监听端口
 	portList := &conf.PortList{
 		Range: []conf.PortRange{{From: nodeInfo.Port, To: nodeInfo.Port}},
 	}
 	inboundDetourConfig.PortList = portList
-	// Build Tag
+	// 构建入站 Tag
 	inboundDetourConfig.Tag = tag
-	// SniffingConfig
+	// 流量嗅探配置
 	sniffingConfig := &conf.SniffingConfig{
 		Enabled:      true,
 		DestOverride: &conf.StringList{"http", "tls", "quic", "fakedns"},
@@ -55,12 +55,12 @@ func InboundBuilder(config *Config, nodeInfo *api.NodeInfo, tag string) (*core.I
 	)
 
 	var proxySetting any
-	// Build Protocol and Protocol setting
+	// 构建协议类型与协议配置
 	switch nodeInfo.NodeType {
 	case "V2ray", "Vmess", "Vless":
 		if nodeInfo.EnableVless || (nodeInfo.NodeType == "Vless" && nodeInfo.NodeType != "Vmess") {
 			protocol = "vless"
-			// Enable fallback
+			// VLESS 可按 SNI、ALPN 或路径把非代理流量转发到回落目标。
 			if config.EnableFallback {
 				fallbackConfigs, err := buildVlessFallbacks(config.FallBackConfigs)
 				if err == nil {
@@ -82,7 +82,7 @@ func InboundBuilder(config *Config, nodeInfo *api.NodeInfo, tag string) (*core.I
 		}
 	case "Trojan":
 		protocol = "trojan"
-		// Enable fallback
+		// 启用 fallback
 		if config.EnableFallback {
 			fallbackConfigs, err := buildTrojanFallbacks(config.FallBackConfigs)
 			if err == nil {
@@ -105,8 +105,7 @@ func InboundBuilder(config *Config, nodeInfo *api.NodeInfo, tag string) (*core.I
 		}
 
 		proxySetting, _ := proxySetting.(*conf.ShadowsocksServerConfig)
-		// shadowsocks must have a random password
-		// shadowsocks2022's password == user PSK, thus should a length of string >= 32 and base64 encoder
+		// shadowsocks 必须设置随机密码；2022 版本使用 PSK
 		b := make([]byte, 32)
 		rand.Read(b)
 		randPasswd := hex.EncodeToString(b)
@@ -144,7 +143,7 @@ func InboundBuilder(config *Config, nodeInfo *api.NodeInfo, tag string) (*core.I
 	inboundDetourConfig.Protocol = protocol
 	inboundDetourConfig.Settings = &setting
 
-	// Build streamSettings
+	// 构建传输层（stream）配置
 	streamSetting = new(conf.StreamConfig)
 	transportProtocol := conf.TransportProtocol(nodeInfo.TransportProtocol)
 	networkType, err := transportProtocol.Build()
@@ -192,7 +191,7 @@ func InboundBuilder(config *Config, nodeInfo *api.NodeInfo, tag string) (*core.I
 	}
 	streamSetting.Network = &transportProtocol
 
-	// Build TLS and REALITY settings
+	// 构建 TLS/REALITY 配置
 	var isREALITY bool
 	if config.DisableLocalREALITYConfig {
 		if nodeInfo.REALITYConfig != nil && nodeInfo.EnableREALITY {
@@ -229,6 +228,7 @@ func InboundBuilder(config *Config, nodeInfo *api.NodeInfo, tag string) (*core.I
 		}
 	}
 
+	// 非 REALITY 时，根据 TLS/证书配置启用 TLS
 	if !isREALITY && nodeInfo.EnableTLS && config.CertConfig.CertMode != "none" {
 		streamSetting.Security = "tls"
 		certFile, keyFile, err := getCertFile(config.CertConfig)
@@ -242,7 +242,7 @@ func InboundBuilder(config *Config, nodeInfo *api.NodeInfo, tag string) (*core.I
 		streamSetting.TLSSettings = tlsSettings
 	}
 
-	// Support ProxyProtocol for any transport protocol
+	// 非 TCP/WS 时也支持 ProxyProtocol
 	if networkType != "tcp" && networkType != "ws" && config.EnableProxyProtocol {
 		sockoptConfig := &conf.SocketConfig{
 			AcceptProxyProtocol: config.EnableProxyProtocol,
@@ -255,6 +255,7 @@ func InboundBuilder(config *Config, nodeInfo *api.NodeInfo, tag string) (*core.I
 }
 
 func getCertFile(certConfig *mylego.CertConfig) (certFile string, keyFile string, err error) {
+	// 按证书模式获取证书与私钥文件
 	switch certConfig.CertMode {
 	case "file":
 		if certConfig.CertFile == "" || certConfig.KeyFile == "" {
@@ -287,6 +288,7 @@ func getCertFile(certConfig *mylego.CertConfig) (certFile string, keyFile string
 }
 
 func buildVlessFallbacks(fallbackConfigs []*FallBackConfig) ([]*conf.VLessInboundFallback, error) {
+	// 组装 VLESS fallback 列表
 	if fallbackConfigs == nil {
 		return nil, fmt.Errorf("you must provide FallBackConfigs")
 	}
@@ -315,6 +317,7 @@ func buildVlessFallbacks(fallbackConfigs []*FallBackConfig) ([]*conf.VLessInboun
 }
 
 func buildTrojanFallbacks(fallbackConfigs []*FallBackConfig) ([]*conf.TrojanInboundFallback, error) {
+	// 组装 Trojan fallback 列表
 	if fallbackConfigs == nil {
 		return nil, fmt.Errorf("you must provide FallBackConfigs")
 	}

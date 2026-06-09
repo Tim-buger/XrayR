@@ -77,6 +77,9 @@ wget -N https://raw.githubusercontent.com/XrayR-project/XrayR-release/master/ins
 
 [Docker部署教程](https://xrayr-project.github.io/XrayR-doc/xrayr-xia-zai-he-an-zhuang/install/docker)
 
+本仓库已提供从源码构建的 `docker-compose.yml`。SSPanel-UIM 对接、运行流程、
+配置项和部署命令见 [运行流程与 Docker 部署](docs/运行流程与Docker部署.md)。
+
 ### 手动安装
 
 [手动安装教程](https://xrayr-project.github.io/XrayR-doc/xrayr-xia-zai-he-an-zhuang/install/manual)
@@ -105,5 +108,4 @@ wget -N https://raw.githubusercontent.com/XrayR-project/XrayR-release/master/ins
 ## Stargazers over time
 
 [![Stargazers over time](https://starchart.cc/XrayR-project/XrayR.svg)](https://starchart.cc/XrayR-project/XrayR)
-
 

@@ -12,6 +12,7 @@ import (
 )
 
 type SniffResult interface {
+	// 嗅探结果包含协议与域名
 	Protocol() string
 	Domain() string
 }
@@ -28,10 +29,12 @@ type protocolSnifferWithMetadata struct {
 }
 
 type Sniffer struct {
+	// 支持多个协议嗅探器
 	sniffer []protocolSnifferWithMetadata
 }
 
 func NewSniffer(ctx context.Context) *Sniffer {
+	// 默认嗅探器集合（HTTP/TLS/BT/QUIC/UTP + FakeDNS）
 	ret := &Sniffer{
 		sniffer: []protocolSnifferWithMetadata{
 			{func(c context.Context, b []byte) (SniffResult, error) { return http.SniffHTTP(b, ctx) }, false, net.Network_TCP},
@@ -55,6 +58,7 @@ func NewSniffer(ctx context.Context) *Sniffer {
 var errUnknownContent = newError("unknown content")
 
 func (s *Sniffer) Sniff(c context.Context, payload []byte, network net.Network) (SniffResult, error) {
+	// 嗅探内容（优先命中明确结果，保留 pending）
 	var pendingSniffer []protocolSnifferWithMetadata
 	for _, si := range s.sniffer {
 		s := si.protocolSniffer
@@ -81,6 +85,7 @@ func (s *Sniffer) Sniff(c context.Context, payload []byte, network net.Network) 
 }
 
 func (s *Sniffer) SniffMetadata(c context.Context) (SniffResult, error) {
+	// 仅嗅探元数据
 	var pendingSniffer []protocolSnifferWithMetadata
 	for _, si := range s.sniffer {
 		s := si.protocolSniffer
@@ -108,6 +113,7 @@ func (s *Sniffer) SniffMetadata(c context.Context) (SniffResult, error) {
 }
 
 func CompositeResult(domainResult SniffResult, protocolResult SniffResult) SniffResult {
+	// 组合协议与域名结果
 	return &compositeResult{domainResult: domainResult, protocolResult: protocolResult}
 }
 

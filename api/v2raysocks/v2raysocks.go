@@ -22,7 +22,7 @@ import (
 	"github.com/XrayR-project/XrayR/api"
 )
 
-// APIClient create an api client to the panel.
+// APIClient V2RaySocks 面板 API 客户端
 type APIClient struct {
 	client        *resty.Client
 	APIHost       string
@@ -39,7 +39,7 @@ type APIClient struct {
 	eTags         map[string]string
 }
 
-// New create an api instance
+// New 创建 V2RaySocks API 客户端
 func New(apiConfig *api.Config) *APIClient {
 
 	client := resty.New()
@@ -82,7 +82,7 @@ func New(apiConfig *api.Config) *APIClient {
 	return apiClient
 }
 
-// readLocalRuleList reads the local rule list file
+// readLocalRuleList 读取本地规则文件
 func readLocalRuleList(path string) (LocalRuleList []api.DetectRule) {
 
 	LocalRuleList = make([]api.DetectRule, 0)
@@ -117,7 +117,7 @@ func readLocalRuleList(path string) (LocalRuleList []api.DetectRule) {
 	return LocalRuleList
 }
 
-// Describe return a description of the client
+// Describe 返回客户端描述信息
 func (c *APIClient) Describe() api.ClientInfo {
 	return api.ClientInfo{APIHost: c.APIHost, NodeID: c.NodeID, Key: c.Key, NodeType: c.NodeType}
 }

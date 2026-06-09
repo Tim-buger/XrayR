@@ -10,16 +10,17 @@ import (
 	"github.com/XrayR-project/XrayR/api"
 )
 
-// OutboundBuilder build freedom outbound config for addOutbound
+// OutboundBuilder 生成节点对应的 freedom 出站配置。
 func OutboundBuilder(config *Config, nodeInfo *api.NodeInfo, tag string) (*core.OutboundHandlerConfig, error) {
+	// 构建默认 freedom 出站
 	outboundDetourConfig := &conf.OutboundDetourConfig{}
 	outboundDetourConfig.Protocol = "freedom"
 	outboundDetourConfig.Tag = tag
 
-	// SendThrough setting
+	// 指定出站源 IP（可选）
 	outboundDetourConfig.SendThrough = &config.SendIP
 
-	// Freedom Protocol setting
+	// DNS 解析策略
 	var domainStrategy = "Asis"
 	if config.EnableDNS {
 		if config.DNSType != "" {
@@ -31,7 +32,7 @@ func OutboundBuilder(config *Config, nodeInfo *api.NodeInfo, tag string) (*core.
 	proxySetting := &conf.FreedomConfig{
 		DomainStrategy: domainStrategy,
 	}
-	// Used for Shadowsocks-Plugin
+	// shadowsocks 插件模式使用回环转发
 	if nodeInfo.NodeType == "dokodemo-door" {
 		proxySetting.Redirect = fmt.Sprintf("127.0.0.1:%d", nodeInfo.Port-1)
 	}

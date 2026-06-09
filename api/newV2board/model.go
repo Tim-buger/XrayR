@@ -5,6 +5,7 @@ import (
 )
 
 type serverConfig struct {
+	// 节点下发的配置聚合
 	shadowsocks
 	v2ray
 	trojan
@@ -18,6 +19,7 @@ type serverConfig struct {
 }
 
 type shadowsocks struct {
+	// shadowsocks 配置
 	Cipher       string `json:"cipher"`
 	Obfs         string `json:"obfs"`
 	ObfsSettings struct {
@@ -28,6 +30,7 @@ type shadowsocks struct {
 }
 
 type v2ray struct {
+	// v2ray/vless 传输配置
 	Network         string `json:"network"`
 	NetworkSettings struct {
 		Path        string           `json:"path"`
@@ -56,11 +59,13 @@ type v2ray struct {
 }
 
 type trojan struct {
+	// trojan 配置
 	Host       string `json:"host"`
 	ServerName string `json:"server_name"`
 }
 
 type route struct {
+	// 路由规则
 	Id          int      `json:"id"`
 	Match       []string `json:"match"`
 	Action      string   `json:"action"`
@@ -68,6 +73,7 @@ type route struct {
 }
 
 type user struct {
+	// 用户下发信息
 	Id         int    `json:"id"`
 	Uuid       string `json:"uuid"`
 	SpeedLimit int    `json:"speed_limit"`

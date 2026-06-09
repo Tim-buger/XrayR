@@ -2,7 +2,7 @@ package sspanel
 
 import "encoding/json"
 
-// NodeInfoResponse is the response of node
+// NodeInfoResponse 节点信息响应
 type NodeInfoResponse struct {
 	Group           int             `json:"node_group"`
 	Class           int             `json:"node_class"`
@@ -16,6 +16,7 @@ type NodeInfoResponse struct {
 }
 
 type CustomConfig struct {
+	// sspanel 自定义配置字段
 	OffsetPortNode string          `json:"offset_port_node"`
 	Host           string          `json:"host"`
 	Method         string          `json:"method"`
@@ -35,7 +36,7 @@ type CustomConfig struct {
 	RealityOpts    *REALITYConfig  `json:"reality-opts"`
 }
 
-// UserResponse is the response of user
+// UserResponse 用户信息响应
 type UserResponse struct {
 	ID          int     `json:"id"`
 	Passwd      string  `json:"passwd"`
@@ -47,30 +48,30 @@ type UserResponse struct {
 	AliveIP     int     `json:"alive_ip"`
 }
 
-// Response is the common response
+// Response 通用响应结构
 type Response struct {
 	Ret  uint            `json:"ret"`
 	Data json.RawMessage `json:"data"`
 }
 
-// PostData is the data structure of post data
+// PostData 通用提交结构
 type PostData struct {
 	Data interface{} `json:"data"`
 }
 
-// SystemLoad is the data structure of system load
+// SystemLoad 系统负载信息
 type SystemLoad struct {
 	Uptime string `json:"uptime"`
 	Load   string `json:"load"`
 }
 
-// OnlineUser is the data structure of online user
+// OnlineUser 在线用户信息
 type OnlineUser struct {
 	UID int    `json:"user_id"`
 	IP  string `json:"ip"`
 }
 
-// UserTraffic is the data structure of traffic
+// UserTraffic 用户流量上报结构
 type UserTraffic struct {
 	UID      int   `json:"user_id"`
 	Upload   int64 `json:"u"`
@@ -78,16 +79,19 @@ type UserTraffic struct {
 }
 
 type RuleItem struct {
+	// 规则项
 	ID      int    `json:"id"`
 	Content string `json:"regex"`
 }
 
 type IllegalItem struct {
+	// 违规上报项
 	ID  int `json:"list_id"`
 	UID int `json:"user_id"`
 }
 
 type REALITYConfig struct {
+	// REALITY 配置
 	Dest             string   `json:"dest,omitempty"`
 	ProxyProtocolVer uint64   `json:"proxy_protocol_ver,omitempty"`
 	ServerNames      []string `json:"server_names,omitempty"`

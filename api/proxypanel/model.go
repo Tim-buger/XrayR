@@ -3,6 +3,7 @@ package proxypanel
 import "encoding/json"
 
 type Response struct {
+	// 通用响应
 	Status  string          `json:"status"`
 	Code    int             `json:"code"`
 	Data    json.RawMessage `json:"data"`
@@ -10,6 +11,7 @@ type Response struct {
 }
 
 type V2rayNodeInfo struct {
+	// V2ray 节点信息
 	ID            int    `json:"id"`
 	IsUDP         bool   `json:"is_udp"`
 	SpeedLimit    uint64 `json:"speed_limit"`
@@ -33,6 +35,7 @@ type V2rayNodeInfo struct {
 }
 
 type ShadowsocksNodeInfo struct {
+	// Shadowsocks 节点信息
 	ID          int    `json:"id"`
 	SpeedLimit  uint64 `json:"speed_limit"`
 	ClientLimit int    `json:"client_limit"`
@@ -41,6 +44,7 @@ type ShadowsocksNodeInfo struct {
 }
 
 type TrojanNodeInfo struct {
+	// Trojan 节点信息
 	ID          int    `json:"id"`
 	IsUDP       bool   `json:"is_udp"`
 	SpeedLimit  uint64 `json:"speed_limit"`
@@ -59,52 +63,61 @@ type NodeStatus struct {
 }
 
 type NodeOnline struct {
+	// 在线用户
 	UID int    `json:"uid"`
 	IP  string `json:"ip"`
 }
 
 type VMessUser struct {
+	// VMess 用户信息
 	UID        int    `json:"uid"`
 	VmessUID   string `json:"vmess_uid"`
 	SpeedLimit uint64 `json:"speed_limit"`
 }
 
 type TrojanUser struct {
+	// Trojan 用户信息
 	UID        int    `json:"uid"`
 	Password   string `json:"password"`
 	SpeedLimit uint64 `json:"speed_limit"`
 }
 
 type SSUser struct {
+	// Shadowsocks 用户信息
 	UID        int    `json:"uid"`
 	Password   string `json:"passwd"`
 	SpeedLimit uint64 `json:"speed_limit"`
 }
 
 type UserTraffic struct {
+	// 用户流量上报
 	UID      int   `json:"uid"`
 	Upload   int64 `json:"upload"`
 	Download int64 `json:"download"`
 }
 
 type NodeRule struct {
+	// 规则集合
 	Mode  string         `json:"mode"`
 	Rules []NodeRuleItem `json:"rules"`
 }
 
 type NodeRuleItem struct {
+	// 规则项
 	ID      int    `json:"id"`
 	Type    string `json:"type"`
 	Pattern string `json:"pattern"`
 }
 
 type IllegalReport struct {
+	// 违规上报
 	UID    int    `json:"uid"`
 	RuleID int    `json:"rule_id"`
 	Reason string `json:"reason"`
 }
 
 type Certificate struct {
+	// 证书信息
 	Key string `json:"key"`
 	Pem string `json:"pem"`
 }

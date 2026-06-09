@@ -1,0 +1,96 @@
+# SSPanel-UIM 单节点示例。
+# 首次部署时复制为 config.yml，再修改 ApiHost、ApiKey、NodeID、NodeType。
+
+Log:
+  Level: warning # 可选：none、error、warning、info、debug
+  AccessPath: # 例如 /etc/XrayR/access.log；留空则不写访问日志
+  ErrorPath: # 例如 /etc/XrayR/error.log；留空则不写错误日志
+
+# 留空表示不额外加载对应配置；需要时取消注释。
+DnsConfigPath: # /etc/XrayR/dns.json
+RouteConfigPath: # /etc/XrayR/route.json
+InboundConfigPath: # /etc/XrayR/custom_inbound.json
+OutboundConfigPath: # /etc/XrayR/custom_outbound.json
+
+ConnectionConfig:
+  Handshake: 4 # 握手超时，秒
+  ConnIdle: 30 # 空闲连接超时，秒
+  UplinkOnly: 2 # 下行关闭后保留上行的时间，秒
+  DownlinkOnly: 4 # 上行关闭后保留下行的时间，秒
+  BufferSize: 64 # 每条连接的缓冲区，KB
+
+Nodes:
+  - PanelType: "SSpanel"
+    ApiConfig:
+      ApiHost: "https://panel.example.com" # 面板地址，不要以 / 结尾
+      ApiKey: "请替换为面板中的 muKey"
+      NodeID: 1 # SSPanel 后台中的节点 ID
+      NodeType: "V2ray" # V2ray、Trojan、Shadowsocks、Shadowsocks-Plugin
+      Timeout: 30 # 请求面板的超时时间，秒
+      EnableVless: false # 旧版 V2ray 节点配置是否改用 VLESS
+      VlessFlow: "xtls-rprx-vision"
+      SpeedLimit: 0 # 本地覆盖限速，Mbps；0 表示使用面板设置
+      DeviceLimit: 0 # 本地覆盖设备数；0 表示使用面板设置
+      RuleListPath: # /etc/XrayR/rulelist
+      DisableCustomConfig: false # true 时忽略 SSPanel 的 custom_config，使用旧格式
+
+    ControllerConfig:
+      ListenIP: 0.0.0.0 # 节点入站监听地址
+      SendIP: 0.0.0.0 # 出站源地址；一般保持默认
+      UpdatePeriodic: 60 # 拉取节点/用户并上报数据的周期，秒
+      EnableDNS: false
+      DNSType: AsIs # AsIs、UseIP、UseIPv4、UseIPv6
+      EnableProxyProtocol: false
+      DisableUploadTraffic: false
+      DisableGetRule: false
+      DisableIVCheck: false
+      DisableSniffing: false
+
+      AutoSpeedLimitConfig:
+        Limit: 0 # 超过此平均速率时触发，Mbps；0 表示关闭
+        WarnTimes: 0
+        LimitSpeed: 0 # 触发后的限速，Mbps
+        LimitDuration: 0 # 限速持续时间，分钟
+
+      GlobalDeviceLimitConfig:
+        Enable: false # 多台后端共同限制设备数时才启用 Redis
+        RedisNetwork: tcp
+        RedisAddr: 127.0.0.1:6379
+        RedisUsername:
+        RedisPassword:
+        RedisDB: 0
+        Timeout: 5
+        Expiry: 60
+
+      EnableFallback: false
+      FallBackConfigs:
+        - SNI:
+          Alpn:
+          Path:
+          Dest: 80
+          ProxyProtocolVer: 0
+
+      DisableLocalREALITYConfig: false
+      EnableREALITY: false
+      REALITYConfigs:
+        Show: false
+        Dest: www.microsoft.com:443
+        ProxyProtocolVer: 0
+        ServerNames:
+          - www.microsoft.com
+        PrivateKey:
+        MinClientVer:
+        MaxClientVer:
+        MaxTimeDiff: 0
+        ShortIds:
+          - ""
+
+      # none：关闭 TLS；file：读取现有证书；http/tls/dns：自动申请证书。
+      CertConfig:
+        CertMode: none
+        CertDomain: "node.example.com"
+        CertFile: /etc/XrayR/cert/node.example.com.cert
+        KeyFile: /etc/XrayR/cert/node.example.com.key
+        Provider:
+        Email:
+        DNSEnv: {}

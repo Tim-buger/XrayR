@@ -1,0 +1,11 @@
+.git
+.github
+.idea
+.vscode
+*.log
+*.test
+*.out
+XrayR
+release/config/config.yml
+release/config/cert
+release/config/.lego

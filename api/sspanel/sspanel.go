@@ -21,12 +21,12 @@ import (
 )
 
 var (
-	firstPortRe  = regexp.MustCompile(`(?m)port=(?P<outport>\d+)#?`) // First Port
-	secondPortRe = regexp.MustCompile(`(?m)port=\d+#(\d+)`)          // Second Port
-	hostRe       = regexp.MustCompile(`(?m)host=([\w.]+)\|?`)        // Host
+	firstPortRe  = regexp.MustCompile(`(?m)port=(?P<outport>\d+)#?`) // 外部端口
+	secondPortRe = regexp.MustCompile(`(?m)port=\d+#(\d+)`)          // 内部偏移端口
+	hostRe       = regexp.MustCompile(`(?m)host=([\w.]+)\|?`)        // 回源主机
 )
 
-// APIClient create a api client to the panel.
+// APIClient SSPANEL 面板 API 客户端
 type APIClient struct {
 	client              *resty.Client
 	APIHost             string
@@ -45,7 +45,7 @@ type APIClient struct {
 	eTags               map[string]string
 }
 
-// New create api instance
+// New 创建 SSPANEL API 客户端
 func New(apiConfig *api.Config) *APIClient {
 	client := resty.New()
 
@@ -58,18 +58,16 @@ func New(apiConfig *api.Config) *APIClient {
 	client.OnError(func(req *resty.Request, err error) {
 		var v *resty.ResponseError
 		if errors.As(err, &v) {
-			// v.Response contains the last response from the server
-			// v.Err contains the original error
+			// ResponseError 同时保留最后一次响应和原始请求错误。
 			log.Print(v.Err)
 		}
 	})
 
 	client.SetBaseURL(apiConfig.APIHost)
-	// Create Key for each requests
+	// SSPanel 的不同版本可能读取 key 或 muKey，因此同时携带两者。
 	client.SetQueryParam("key", apiConfig.Key)
-	// Add support for muKey
 	client.SetQueryParam("muKey", apiConfig.Key)
-	// Read local rule list
+	// 本地规则会与面板下发规则合并。
 	localRuleList := readLocalRuleList(apiConfig.RuleListPath)
 
 	return &APIClient{
@@ -89,11 +87,11 @@ func New(apiConfig *api.Config) *APIClient {
 	}
 }
 
-// readLocalRuleList reads the local rule list file
+// readLocalRuleList 读取本地规则文件
 func readLocalRuleList(path string) (LocalRuleList []api.DetectRule) {
 	LocalRuleList = make([]api.DetectRule, 0)
 	if path != "" {
-		// open the file
+		// 打开本地规则文件，每行是一条正则表达式。
 		file, err := os.Open(path)
 
 		defer func(file *os.File) {
@@ -102,7 +100,7 @@ func readLocalRuleList(path string) (LocalRuleList []api.DetectRule) {
 				log.Printf("Error when closing file: %s", err)
 			}
 		}(file)
-		// handle errors while opening
+		// 文件不可读时记录错误并返回空规则列表。
 		if err != nil {
 			log.Printf("Error when opening file: %s", err)
 			return LocalRuleList
@@ -110,14 +108,14 @@ func readLocalRuleList(path string) (LocalRuleList []api.DetectRule) {
 
 		fileScanner := bufio.NewScanner(file)
 
-		// read line by line
+		// 逐行编译规则。
 		for fileScanner.Scan() {
 			LocalRuleList = append(LocalRuleList, api.DetectRule{
 				ID:      -1,
 				Pattern: regexp.MustCompile(fileScanner.Text()),
 			})
 		}
-		// handle first encountered error while reading
+		// 返回扫描过程中遇到的第一个错误。
 		if err := fileScanner.Err(); err != nil {
 			log.Fatalf("Error while reading file: %s", err)
 			return
@@ -127,21 +125,23 @@ func readLocalRuleList(path string) (LocalRuleList []api.DetectRule) {
 	return LocalRuleList
 }
 
-// Describe return a description of the client
+// Describe 返回客户端描述信息
 func (c *APIClient) Describe() api.ClientInfo {
 	return api.ClientInfo{APIHost: c.APIHost, NodeID: c.NodeID, Key: c.Key, NodeType: c.NodeType}
 }
 
-// Debug set the client debug for client
+// Debug 打开 HTTP 调试日志
 func (c *APIClient) Debug() {
 	c.client.SetDebug(true)
 }
 
 func (c *APIClient) assembleURL(path string) string {
+	// 拼接完整 URL
 	return c.APIHost + path
 }
 
 func (c *APIClient) parseResponse(res *resty.Response, path string, err error) (*Response, error) {
+	// 统一解析面板返回
 	if err != nil {
 		return nil, fmt.Errorf("request %s failed: %s", c.assembleURL(path), err)
 	}
@@ -159,7 +159,7 @@ func (c *APIClient) parseResponse(res *resty.Response, path string, err error) (
 	return response, nil
 }
 
-// GetNodeInfo will pull NodeInfo Config from ssPanel
+// GetNodeInfo 从 SSPanel 拉取节点配置并转换为通用 NodeInfo。
 func (c *APIClient) GetNodeInfo() (nodeInfo *api.NodeInfo, err error) {
 	path := fmt.Sprintf("/mod_mu/nodes/%d/info", c.NodeID)
 	res, err := c.client.R().
@@ -167,7 +167,7 @@ func (c *APIClient) GetNodeInfo() (nodeInfo *api.NodeInfo, err error) {
 		SetHeader("If-None-Match", c.eTags["node"]).
 		ForceContentType("application/json").
 		Get(path)
-	// Etag identifier for a specific version of a resource. StatusCode = 304 means no changed
+	// ETag 用于避免重复解析未变化的节点配置；304 表示沿用旧数据。
 	if res.StatusCode() == 304 {
 		return nil, errors.New(api.NodeNotModified)
 	}
@@ -187,7 +187,7 @@ func (c *APIClient) GetNodeInfo() (nodeInfo *api.NodeInfo, err error) {
 		return nil, fmt.Errorf("unmarshal %s failed: %s", reflect.TypeOf(nodeInfoResponse), err)
 	}
 
-	// determine ssPanel version, if disable custom config or version < 2021.11, then use old api
+	// 关闭 custom_config 或面板版本早于 2021.11 时，按旧版 server 字符串解析。
 	c.version = nodeInfoResponse.Version
 	var isExpired bool
 	if compareVersion(c.version, "2021.11") == -1 {
@@ -227,7 +227,7 @@ func (c *APIClient) GetNodeInfo() (nodeInfo *api.NodeInfo, err error) {
 	return nodeInfo, nil
 }
 
-// GetUserList will pull user form ssPanel
+// GetUserList 从 SSPanel 拉取当前节点可用用户。
 func (c *APIClient) GetUserList() (UserList *[]api.UserInfo, err error) {
 	path := "/mod_mu/users"
 	res, err := c.client.R().
@@ -236,7 +236,7 @@ func (c *APIClient) GetUserList() (UserList *[]api.UserInfo, err error) {
 		SetResult(&Response{}).
 		ForceContentType("application/json").
 		Get(path)
-	// Etag identifier for a specific version of a resource. StatusCode = 304 means no changed
+	// 304 表示用户列表未变化。
 	if res.StatusCode() == 304 {
 		return nil, errors.New(api.UserNotModified)
 	}
@@ -263,9 +263,9 @@ func (c *APIClient) GetUserList() (UserList *[]api.UserInfo, err error) {
 	return userList, nil
 }
 
-// ReportNodeStatus reports the node status to the ssPanel
+// ReportNodeStatus 向支持该接口的旧版 SSPanel 上报系统状态。
 func (c *APIClient) ReportNodeStatus(nodeStatus *api.NodeStatus) (err error) {
-	// Determine whether a status report is in need
+	// 2023.2 及以上版本不再需要这里的旧式状态上报。
 	if compareVersion(c.version, "2023.2") == -1 {
 		path := fmt.Sprintf("/mod_mu/nodes/%d/info", c.NodeID)
 		systemLoad := SystemLoad{
@@ -287,7 +287,7 @@ func (c *APIClient) ReportNodeStatus(nodeStatus *api.NodeStatus) (err error) {
 	return nil
 }
 
-// ReportNodeOnlineUsers reports online user ip
+// ReportNodeOnlineUsers 上报在线用户 IP，并记录本节点上次上报的设备数。
 func (c *APIClient) ReportNodeOnlineUsers(onlineUserList *[]api.OnlineUser) error {
 	c.access.Lock()
 	defer c.access.Unlock()
@@ -296,9 +296,9 @@ func (c *APIClient) ReportNodeOnlineUsers(onlineUserList *[]api.OnlineUser) erro
 	data := make([]OnlineUser, len(*onlineUserList))
 	for i, user := range *onlineUserList {
 		data[i] = OnlineUser{UID: user.UID, IP: user.IP}
-		reportOnline[user.UID]++ // will start from 1 if key doesn’t exist
+		reportOnline[user.UID]++
 	}
-	c.LastReportOnline = reportOnline // Update LastReportOnline
+	c.LastReportOnline = reportOnline
 
 	postData := &PostData{Data: data}
 	path := "/mod_mu/users/aliveip"
@@ -317,7 +317,7 @@ func (c *APIClient) ReportNodeOnlineUsers(onlineUserList *[]api.OnlineUser) erro
 	return nil
 }
 
-// ReportUserTraffic reports the user traffic
+// ReportUserTraffic 上报用户在本统计周期内的上下行流量。
 func (c *APIClient) ReportUserTraffic(userTraffic *[]api.UserTraffic) error {
 
 	data := make([]UserTraffic, len(*userTraffic))
@@ -343,7 +343,7 @@ func (c *APIClient) ReportUserTraffic(userTraffic *[]api.UserTraffic) error {
 	return nil
 }
 
-// GetNodeRule will pull the audit rule form ssPanel
+// GetNodeRule 合并本地规则与 SSPanel 下发的审计规则。
 func (c *APIClient) GetNodeRule() (*[]api.DetectRule, error) {
 	ruleList := c.LocalRuleList
 	path := "/mod_mu/func/detect_rules"
@@ -353,7 +353,7 @@ func (c *APIClient) GetNodeRule() (*[]api.DetectRule, error) {
 		ForceContentType("application/json").
 		Get(path)
 
-	// Etag identifier for a specific version of a resource. StatusCode = 304 means no changed
+	// 304 表示审计规则未变化。
 	if res.StatusCode() == 304 {
 		return nil, errors.New(api.RuleNotModified)
 	}
@@ -382,7 +382,7 @@ func (c *APIClient) GetNodeRule() (*[]api.DetectRule, error) {
 	return &ruleList, nil
 }
 
-// ReportIllegal reports the user illegal behaviors
+// ReportIllegal 上报用户命中的审计规则。
 func (c *APIClient) ReportIllegal(detectResultList *[]api.DetectResult) error {
 
 	data := make([]IllegalItem, len(*detectResultList))
@@ -407,7 +407,7 @@ func (c *APIClient) ReportIllegal(detectResultList *[]api.DetectResult) error {
 	return nil
 }
 
-// ParseV2rayNodeResponse parse the response for the given node info format
+// ParseV2rayNodeResponse 解析旧版 SSPanel 的 V2ray server 字符串。
 func (c *APIClient) ParseV2rayNodeResponse(nodeInfoResponse *NodeInfoResponse) (*api.NodeInfo, error) {
 	var enableTLS bool
 	var path, host, transportProtocol, serviceName, HeaderType string
@@ -431,7 +431,7 @@ func (c *APIClient) ParseV2rayNodeResponse(nodeInfoResponse *NodeInfoResponse) (
 	}
 	alterID := uint16(parsedAlterID)
 
-	// Compatible with more node types config
+	// 兼容 server 字符串中 TLS 和传输协议字段的不同排列。
 	for _, value := range serverConf[3:5] {
 		switch value {
 		case "tls":
@@ -478,7 +478,7 @@ func (c *APIClient) ParseV2rayNodeResponse(nodeInfoResponse *NodeInfoResponse) (
 		return nil, fmt.Errorf("marshal Header Type %s into config failed: %s", header, err)
 	}
 
-	// Create GeneralNodeInfo
+	// 转换为控制器统一使用的节点模型。
 	nodeInfo := &api.NodeInfo{
 		NodeType:          c.NodeType,
 		NodeID:            c.NodeID,
@@ -498,7 +498,7 @@ func (c *APIClient) ParseV2rayNodeResponse(nodeInfoResponse *NodeInfoResponse) (
 	return nodeInfo, nil
 }
 
-// ParseSSNodeResponse parse the response for the given node info format
+// ParseSSNodeResponse 解析旧版 Shadowsocks 节点配置。
 func (c *APIClient) ParseSSNodeResponse(nodeInfoResponse *NodeInfoResponse) (*api.NodeInfo, error) {
 	var port uint32 = 0
 	var speedLimit uint64 = 0
@@ -521,7 +521,7 @@ func (c *APIClient) ParseSSNodeResponse(nodeInfoResponse *NodeInfoResponse) (*ap
 		return nil, fmt.Errorf("unmarshal %s failed: %s", reflect.TypeOf(userListResponse), err)
 	}
 
-	// init server port
+	// 单端口多用户模式取用户列表中的第一个端口作为服务端口。
 	if len(*userListResponse) != 0 {
 		port = (*userListResponse)[0].Port
 	}
@@ -531,7 +531,7 @@ func (c *APIClient) ParseSSNodeResponse(nodeInfoResponse *NodeInfoResponse) (*ap
 	} else {
 		speedLimit = uint64((nodeInfoResponse.SpeedLimit * 1000000) / 8)
 	}
-	// Create GeneralNodeInfo
+	// 转换为控制器统一使用的节点模型。
 	nodeInfo := &api.NodeInfo{
 		NodeType:          c.NodeType,
 		NodeID:            c.NodeID,
@@ -544,7 +544,7 @@ func (c *APIClient) ParseSSNodeResponse(nodeInfoResponse *NodeInfoResponse) (*ap
 	return nodeInfo, nil
 }
 
-// ParseSSPluginNodeResponse parse the response for the given node info format
+// ParseSSPluginNodeResponse 解析旧版 Shadowsocks-Plugin 节点配置。
 func (c *APIClient) ParseSSPluginNodeResponse(nodeInfoResponse *NodeInfoResponse) (*api.NodeInfo, error) {
 	var enableTLS bool
 	var path, host, transportProtocol string
@@ -556,11 +556,11 @@ func (c *APIClient) ParseSSPluginNodeResponse(nodeInfoResponse *NodeInfoResponse
 		return nil, err
 	}
 	port := uint32(parsedPort)
-	port = port - 1 // Shadowsocks-Plugin requires two ports, one for ss the other for other stream protocol
+	port-- // 插件模式占用相邻两个端口：底层 SS 端口和上层传输端口。
 	if port <= 0 {
 		return nil, fmt.Errorf("Shadowsocks-Plugin listen port must bigger than 1")
 	}
-	// Compatible with more node types config
+	// 兼容 TLS、WebSocket 和 obfs 配置。
 	for _, value := range serverConf[3:5] {
 		switch value {
 		case "tls":
@@ -594,7 +594,7 @@ func (c *APIClient) ParseSSPluginNodeResponse(nodeInfoResponse *NodeInfoResponse
 		speedLimit = uint64((nodeInfoResponse.SpeedLimit * 1000000) / 8)
 	}
 
-	// Create GeneralNodeInfo
+	// 转换为控制器统一使用的节点模型。
 	nodeInfo := &api.NodeInfo{
 		NodeType:          c.NodeType,
 		NodeID:            c.NodeID,
@@ -609,7 +609,7 @@ func (c *APIClient) ParseSSPluginNodeResponse(nodeInfoResponse *NodeInfoResponse
 	return nodeInfo, nil
 }
 
-// ParseTrojanNodeResponse parse the response for the given node info format
+// ParseTrojanNodeResponse 解析旧版 Trojan server 字符串。
 func (c *APIClient) ParseTrojanNodeResponse(nodeInfoResponse *NodeInfoResponse) (*api.NodeInfo, error) {
 	// 域名或IP;port=连接端口#偏移端口|host=xx
 	// gz.aaa.com;port=443#12345|host=hk.aaa.com
@@ -665,7 +665,7 @@ func (c *APIClient) ParseTrojanNodeResponse(nodeInfoResponse *NodeInfoResponse) 
 	} else {
 		speedLimit = uint64((nodeInfoResponse.SpeedLimit * 1000000) / 8)
 	}
-	// Create GeneralNodeInfo
+	// 转换为控制器统一使用的节点模型。
 	nodeInfo := &api.NodeInfo{
 		NodeType:          c.NodeType,
 		NodeID:            c.NodeID,
@@ -680,10 +680,10 @@ func (c *APIClient) ParseTrojanNodeResponse(nodeInfoResponse *NodeInfoResponse) 
 	return nodeInfo, nil
 }
 
-// ParseUserListResponse parse the response for the given node info format
+// ParseUserListResponse 转换用户列表，并计算本节点还能接受的设备数。
 func (c *APIClient) ParseUserListResponse(userInfoResponse *[]UserResponse) (*[]api.UserInfo, error) {
 	c.access.Lock()
-	// Clear Last report log
+	// 本轮计算结束后清空上次在线上报快照。
 	defer func() {
 		c.LastReportOnline = make(map[int]int)
 		c.access.Unlock()
@@ -699,19 +699,19 @@ func (c *APIClient) ParseUserListResponse(userInfoResponse *[]UserResponse) (*[]
 			deviceLimit = user.DeviceLimit
 		}
 
-		// If there is still device available, add the user
+		// 面板统计包含所有后端；扣除其它后端占用后再决定是否加载该用户。
 		if deviceLimit > 0 && user.AliveIP > 0 {
 			lastOnline := 0
 			if v, ok := c.LastReportOnline[user.ID]; ok {
 				lastOnline = v
 			}
-			// If there are any available device.
+			// 仍有设备名额时，只允许本节点使用剩余名额。
 			if localDeviceLimit = deviceLimit - user.AliveIP + lastOnline; localDeviceLimit > 0 {
 				deviceLimit = localDeviceLimit
-				// If this backend server has reported any user in the last reporting period.
+				// 无剩余名额但本节点已有在线连接时，暂时保留这些连接。
 			} else if lastOnline > 0 {
 				deviceLimit = lastOnline
-				// Remove this user.
+				// 没有名额且本节点也没有在线连接，不加载该用户。
 			} else {
 				continue
 			}
@@ -736,8 +736,7 @@ func (c *APIClient) ParseUserListResponse(userInfoResponse *[]UserResponse) (*[]
 	return &userList, nil
 }
 
-// ParseSSPanelNodeInfo parse the response for the given node info format
-// Only available for SSPanel version >= 2021.11
+// ParseSSPanelNodeInfo 解析 SSPanel 2021.11 及以上版本的 custom_config。
 func (c *APIClient) ParseSSPanelNodeInfo(nodeInfoResponse *NodeInfoResponse) (*api.NodeInfo, error) {
 	var (
 		speedLimit             uint64 = 0
@@ -746,7 +745,7 @@ func (c *APIClient) ParseSSPanelNodeInfo(nodeInfoResponse *NodeInfoResponse) (*a
 		transportProtocol      string
 	)
 
-	// Check if custom_config is null
+	// 新格式必须包含 custom_config。
 	if len(nodeInfoResponse.CustomConfig) == 0 {
 		return nil, errors.New("custom_config is empty, disable custom config")
 	}
@@ -788,13 +787,13 @@ func (c *APIClient) ParseSSPanelNodeInfo(nodeInfoResponse *NodeInfoResponse) (*a
 		enableTLS = true
 		transportProtocol = "tcp"
 
-		// Select transport protocol
+		// Trojan 默认 TCP，面板明确下发时使用指定传输协议。
 		if nodeConfig.Network != "" {
-			transportProtocol = nodeConfig.Network // try to read transport protocol from config
+			transportProtocol = nodeConfig.Network
 		}
 	}
 
-	// parse reality config
+	// 转换面板下发的 REALITY 配置。
 	realityConfig := new(api.REALITYConfig)
 	if nodeConfig.RealityOpts != nil {
 		r := nodeConfig.RealityOpts
@@ -810,7 +809,7 @@ func (c *APIClient) ParseSSPanelNodeInfo(nodeInfoResponse *NodeInfoResponse) (*a
 		}
 	}
 
-	// Create GeneralNodeInfo
+	// 转换为控制器统一使用的节点模型。
 	nodeInfo := &api.NodeInfo{
 		NodeType:          c.NodeType,
 		NodeID:            c.NodeID,
@@ -833,7 +832,7 @@ func (c *APIClient) ParseSSPanelNodeInfo(nodeInfoResponse *NodeInfoResponse) (*a
 	return nodeInfo, nil
 }
 
-// compareVersion, version1 > version2 return 1, version1 < version2 return -1, 0 means equal
+// compareVersion 比较点分数字版本：大于返回 1，小于返回 -1，相等返回 0。
 func compareVersion(version1, version2 string) int {
 	n, m := len(version1), len(version2)
 	i, j := 0, 0
@@ -842,12 +841,12 @@ func compareVersion(version1, version2 string) int {
 		for ; i < n && version1[i] != '.'; i++ {
 			x = x*10 + int(version1[i]-'0')
 		}
-		i++ // jump dot
+		i++ // 跳过点号
 		y := 0
 		for ; j < m && version2[j] != '.'; j++ {
 			y = y*10 + int(version2[j]-'0')
 		}
-		j++ // jump dot
+		j++ // 跳过点号
 		if x > y {
 			return 1
 		}

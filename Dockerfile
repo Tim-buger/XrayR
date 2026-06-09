@@ -1,17 +1,23 @@
-# Build go
-FROM golang:1.22.0-alpine AS builder
+# 构建阶段：版本必须满足 go.mod 中的 Go 版本要求
+FROM golang:1.24-alpine AS builder
 WORKDIR /app
-COPY . .
 ENV CGO_ENABLED=0
+ARG GOPROXY=https://proxy.golang.org,direct
+ENV GOPROXY=${GOPROXY}
+
+# 先复制依赖清单，源码变化时可复用依赖缓存
+COPY go.mod go.sum ./
 RUN go mod download
-RUN go build -v -o XrayR -trimpath -ldflags "-s -w -buildid="
+COPY . .
+RUN go build -v -o /out/XrayR -trimpath -ldflags "-s -w -buildid="
 
-# Release
-FROM  alpine
-# 安装必要的工具包
-RUN  apk --update --no-cache add tzdata ca-certificates \
-    && cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
-RUN mkdir /etc/XrayR/
-COPY --from=builder /app/XrayR /usr/local/bin
+# 运行阶段：只保留二进制和 TLS/时区所需文件
+FROM alpine:3.21
+RUN apk --no-cache add tzdata ca-certificates \
+    && cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime \
+    && mkdir -p /etc/XrayR/cert
+WORKDIR /etc/XrayR
+COPY --from=builder /out/XrayR /usr/local/bin/XrayR
 
-ENTRYPOINT [ "XrayR", "--config", "/etc/XrayR/config.yml"]
+STOPSIGNAL SIGTERM
+ENTRYPOINT ["/usr/local/bin/XrayR", "--config", "/etc/XrayR/config.yml"]

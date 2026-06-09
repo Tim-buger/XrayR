@@ -2,7 +2,7 @@ package pmpanel
 
 import "encoding/json"
 
-// NodeInfoResponse is the response of node
+// NodeInfoResponse 节点信息响应
 type NodeInfoResponse struct {
 	Class           int     `json:"clazz"`
 	SpeedLimit      float64 `json:"speedlimit"`
@@ -19,7 +19,7 @@ type NodeInfoResponse struct {
 	Sni             string  `json:"sni"`
 }
 
-// UserResponse is the response of user
+// UserResponse 用户信息响应
 type UserResponse struct {
 	ID          int     `json:"id"`
 	Passwd      string  `json:"passwd"`
@@ -27,13 +27,13 @@ type UserResponse struct {
 	DeviceLimit int     `json:"nodeConnector"`
 }
 
-// Response is the common response
+// Response 通用响应结构
 type Response struct {
 	Ret  uint            `json:"ret"`
 	Data json.RawMessage `json:"data"`
 }
 
-// PostData is the data structure of post data
+// PostData 上报数据结构
 type PostData struct {
 	Type    string      `json:"type"`
 	NodeId  int         `json:"nodeId"`
@@ -41,19 +41,19 @@ type PostData struct {
 	Onlines interface{} `json:"onlines"`
 }
 
-// SystemLoad is the data structure of systemload
+// SystemLoad 系统负载信息
 type SystemLoad struct {
 	Uptime string `json:"uptime"`
 	Load   string `json:"load"`
 }
 
-// OnlineUser is the data structure of online user
+// OnlineUser 在线用户信息
 type OnlineUser struct {
 	UID int    `json:"user_id"`
 	IP  string `json:"ip"`
 }
 
-// UserTraffic is the data structure of traffic
+// UserTraffic 用户流量上报结构
 type UserTraffic struct {
 	UID      int    `json:"id"`
 	Upload   int64  `json:"up"`
@@ -62,11 +62,13 @@ type UserTraffic struct {
 }
 
 type RuleItem struct {
+	// 规则项
 	ID      int    `json:"id"`
 	Content string `json:"regex"`
 }
 
 type IllegalItem struct {
+	// 违规上报项
 	ID  int `json:"list_id"`
 	UID int `json:"user_id"`
 }

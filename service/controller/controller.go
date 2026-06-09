@@ -28,23 +28,26 @@ type LimitInfo struct {
 }
 
 type Controller struct {
-	server       *core.Instance
-	config       *Config
-	clientInfo   api.ClientInfo
-	apiClient    api.API
-	nodeInfo     *api.NodeInfo
-	Tag          string
+	// xray-core 实例与运行时依赖
+	server     *core.Instance
+	config     *Config
+	clientInfo api.ClientInfo
+	apiClient  api.API
+	nodeInfo   *api.NodeInfo
+	Tag        string
+	// 用户/任务/限速状态
 	userList     *[]api.UserInfo
 	tasks        []periodicTask
 	limitedUsers map[api.UserInfo]LimitInfo
 	warnedUsers  map[api.UserInfo]int
-	panelType    string
-	ibm          inbound.Manager
-	obm          outbound.Manager
-	stm          stats.Manager
-	dispatcher   *mydispatcher.DefaultDispatcher
-	startAt      time.Time
-	logger       *log.Entry
+	// 组件引用
+	panelType  string
+	ibm        inbound.Manager
+	obm        outbound.Manager
+	stm        stats.Manager
+	dispatcher *mydispatcher.DefaultDispatcher
+	startAt    time.Time
+	logger     *log.Entry
 }
 
 type periodicTask struct {
@@ -52,8 +55,9 @@ type periodicTask struct {
 	*task.Periodic
 }
 
-// New return a Controller service with default parameters.
+// New 创建控制器，并绑定 xray-core 的入站、出站、统计和分发组件。
 func New(server *core.Instance, api api.API, config *Config, panelType string) *Controller {
+	// 构造 Controller，并绑定 xray-core 的各类 Manager
 	logger := log.NewEntry(log.StandardLogger()).WithFields(log.Fields{
 		"Host": api.Describe().APIHost,
 		"Type": api.Describe().NodeType,
@@ -75,10 +79,11 @@ func New(server *core.Instance, api api.API, config *Config, panelType string) *
 	return controller
 }
 
-// Start implement the Start() function of the service interface
+// Start 首次拉取面板配置，创建节点和用户，并启动周期同步任务。
 func (c *Controller) Start() error {
+	// 获取面板信息与节点信息
 	c.clientInfo = c.apiClient.Describe()
-	// First fetch Node Info
+	// 首次启动必须成功取得节点信息。
 	newNodeInfo, err := c.apiClient.GetNodeInfo()
 	if err != nil {
 		return err
@@ -89,19 +94,19 @@ func (c *Controller) Start() error {
 	c.nodeInfo = newNodeInfo
 	c.Tag = c.buildNodeTag()
 
-	// Add new tag
+	// 按节点配置创建入站和出站。
 	err = c.addNewTag(newNodeInfo)
 	if err != nil {
 		c.logger.Panic(err)
 		return err
 	}
-	// Update user
+	// 首次取得全部可用用户。
 	userInfo, err := c.apiClient.GetUserList()
 	if err != nil {
 		return err
 	}
 
-	// sync controller userList
+	// 保存用户快照，后续同步时据此计算增删差异。
 	c.userList = userInfo
 
 	err = c.addNewUser(userInfo, newNodeInfo)
@@ -109,12 +114,12 @@ func (c *Controller) Start() error {
 		return err
 	}
 
-	// Add Limiter
+	// 初始化限速/设备数限制
 	if err := c.AddInboundLimiter(c.Tag, newNodeInfo.SpeedLimit, userInfo, c.config.GlobalDeviceLimitConfig); err != nil {
 		c.logger.Print(err)
 	}
 
-	// Add Rule Manager
+	// 初始化审计/拦截规则
 	if !c.config.DisableGetRule {
 		if ruleList, err := c.apiClient.GetNodeRule(); err != nil {
 			c.logger.Printf("Get rule list filed: %s", err)
@@ -125,7 +130,7 @@ func (c *Controller) Start() error {
 		}
 	}
 
-	// Init AutoSpeedLimitConfig
+	// 初始化自动限速状态
 	if c.config.AutoSpeedLimitConfig == nil {
 		c.config.AutoSpeedLimitConfig = &AutoSpeedLimitConfig{0, 0, 0, 0}
 	}
@@ -134,7 +139,7 @@ func (c *Controller) Start() error {
 		c.warnedUsers = make(map[api.UserInfo]int)
 	}
 
-	// Add periodic tasks
+	// 定时任务：节点信息与用户信息同步
 	c.tasks = append(c.tasks,
 		periodicTask{
 			tag: "node monitor",
@@ -150,7 +155,7 @@ func (c *Controller) Start() error {
 			}},
 	)
 
-	// Check cert service in need
+	// TLS 证书自动续期检查
 	if c.nodeInfo.EnableTLS && c.config.EnableREALITY == false {
 		c.tasks = append(c.tasks, periodicTask{
 			tag: "cert monitor",
@@ -160,7 +165,7 @@ func (c *Controller) Start() error {
 			}})
 	}
 
-	// Start periodic tasks
+	// 异步启动所有周期任务
 	for i := range c.tasks {
 		c.logger.Printf("Start %s periodic task", c.tasks[i].tag)
 		go c.tasks[i].Start()
@@ -169,8 +174,9 @@ func (c *Controller) Start() error {
 	return nil
 }
 
-// Close implement the Close() function of the service interface
+// Close 停止控制器的全部周期任务。
 func (c *Controller) Close() error {
+	// 关闭周期任务
 	for i := range c.tasks {
 		if c.tasks[i].Periodic != nil {
 			if err := c.tasks[i].Periodic.Close(); err != nil {
@@ -183,12 +189,13 @@ func (c *Controller) Close() error {
 }
 
 func (c *Controller) nodeInfoMonitor() (err error) {
-	// delay to start
+	// 启动后一段时间内不执行，避免刚启动时抖动
+	// 第一个周期只等待，避免与启动时的首次拉取重复。
 	if time.Since(c.startAt) < time.Duration(c.config.UpdatePeriodic)*time.Second {
 		return nil
 	}
 
-	// First fetch Node Info
+	// 拉取节点配置；HTTP 304 表示配置没有变化。
 	var nodeInfoChanged = true
 	newNodeInfo, err := c.apiClient.GetNodeInfo()
 	if err != nil {
@@ -204,7 +211,7 @@ func (c *Controller) nodeInfoMonitor() (err error) {
 		return errors.New("server port must > 0")
 	}
 
-	// Update User
+	// 同步用户列表；HTTP 304 表示列表没有变化。
 	var usersChanged = true
 	newUserInfo, err := c.apiClient.GetUserList()
 	if err != nil {
@@ -217,10 +224,10 @@ func (c *Controller) nodeInfoMonitor() (err error) {
 		}
 	}
 
-	// If nodeInfo changed
+	// 节点参数变化时，需要重建对应的入站、出站和限速器。
 	if nodeInfoChanged {
 		if !reflect.DeepEqual(c.nodeInfo, newNodeInfo) {
-			// Remove old tag
+			// 删除旧入站和出站。
 			oldTag := c.Tag
 			err := c.removeOldTag(oldTag)
 			if err != nil {
@@ -234,7 +241,7 @@ func (c *Controller) nodeInfoMonitor() (err error) {
 				c.logger.Print(err)
 				return nil
 			}
-			// Add new tag
+			// 用新参数创建入站和出站。
 			c.nodeInfo = newNodeInfo
 			c.Tag = c.buildNodeTag()
 			err = c.addNewTag(newNodeInfo)
@@ -243,7 +250,7 @@ func (c *Controller) nodeInfoMonitor() (err error) {
 				return nil
 			}
 			nodeInfoChanged = true
-			// Remove Old limiter
+			// 删除旧节点标签对应的限速器。
 			if err = c.DeleteInboundLimiter(oldTag); err != nil {
 				c.logger.Print(err)
 				return nil
@@ -253,7 +260,7 @@ func (c *Controller) nodeInfoMonitor() (err error) {
 		}
 	}
 
-	// Check Rule
+	// 同步面板审计规则。
 	if !c.config.DisableGetRule {
 		if ruleList, err := c.apiClient.GetNodeRule(); err != nil {
 			if err.Error() != api.RuleNotModified {
@@ -273,7 +280,7 @@ func (c *Controller) nodeInfoMonitor() (err error) {
 			return nil
 		}
 
-		// Add Limiter
+		// 节点重建后重新初始化限速器。
 		if err := c.AddInboundLimiter(c.Tag, newNodeInfo.SpeedLimit, newUserInfo, c.config.GlobalDeviceLimitConfig); err != nil {
 			c.logger.Print(err)
 			return nil
@@ -298,7 +305,7 @@ func (c *Controller) nodeInfoMonitor() (err error) {
 				if err != nil {
 					c.logger.Print(err)
 				}
-				// Update Limiter
+				// 为新增或配置变化的用户更新限速器。
 				if err := c.UpdateInboundLimiter(c.Tag, &added); err != nil {
 					c.logger.Print(err)
 				}
@@ -351,11 +358,11 @@ func (c *Controller) addNewTag(newNodeInfo *api.NodeInfo) (err error) {
 }
 
 func (c *Controller) addInboundForSSPlugin(newNodeInfo api.NodeInfo) (err error) {
-	// Shadowsocks-Plugin require a separate inbound for other TransportProtocol likes: ws, grpc
+	// Shadowsocks-Plugin 使用两个入站：底层 SS 和承载 WS/gRPC 等传输的入口。
 	fakeNodeInfo := newNodeInfo
 	fakeNodeInfo.TransportProtocol = "tcp"
 	fakeNodeInfo.EnableTLS = false
-	// Add a regular Shadowsocks inbound and outbound
+	// 先创建只监听回环地址的普通 Shadowsocks 入站和出站。
 	inboundConfig, err := InboundBuilder(c.config, &fakeNodeInfo, c.Tag)
 	if err != nil {
 		return err
@@ -375,7 +382,7 @@ func (c *Controller) addInboundForSSPlugin(newNodeInfo api.NodeInfo) (err error)
 
 		return err
 	}
-	// Add an inbound for upper streaming protocol
+	// 再在相邻端口创建上层传输入站，并转发到前一个端口。
 	fakeNodeInfo = newNodeInfo
 	fakeNodeInfo.Port++
 	fakeNodeInfo.NodeType = "dokodemo-door"
@@ -479,12 +486,12 @@ func limitUser(c *Controller, user api.UserInfo, silentUsers *[]api.UserInfo) {
 }
 
 func (c *Controller) userInfoMonitor() (err error) {
-	// delay to start
+	// 第一个周期只等待，避免刚启动就重复上报。
 	if time.Since(c.startAt) < time.Duration(c.config.UpdatePeriodic)*time.Second {
 		return nil
 	}
 
-	// Get server status
+	// 采集并上报 CPU、内存、磁盘和运行时间。
 	CPU, Mem, Disk, Uptime, err := serverstatus.GetSystemInfo()
 	if err != nil {
 		c.logger.Print(err)
@@ -499,7 +506,7 @@ func (c *Controller) userInfoMonitor() (err error) {
 	if err != nil {
 		c.logger.Print(err)
 	}
-	// Unlock users
+	// 恢复已到期的临时限速用户。
 	if c.config.AutoSpeedLimitConfig.Limit > 0 && len(c.limitedUsers) > 0 {
 		c.logger.Printf("Limited users:")
 		toReleaseUsers := make([]api.UserInfo, 0)
@@ -520,7 +527,7 @@ func (c *Controller) userInfoMonitor() (err error) {
 		}
 	}
 
-	// Get User traffic
+	// 读取每个用户的上下行计数，并执行自动限速判断。
 	var userTraffic []api.UserTraffic
 	var upCounterList []stats.Counter
 	var downCounterList []stats.Counter
@@ -530,7 +537,7 @@ func (c *Controller) userInfoMonitor() (err error) {
 	for _, user := range *c.userList {
 		up, down, upCounter, downCounter := c.getTraffic(c.buildUserTag(&user))
 		if up > 0 || down > 0 {
-			// Over speed users
+			// 按本周期平均流量判断用户是否超速。
 			if AutoSpeedLimit > 0 {
 				if down > AutoSpeedLimit*1000000*UpdatePeriodic/8 || up > AutoSpeedLimit*1000000*UpdatePeriodic/8 {
 					if _, ok := c.limitedUsers[user]; !ok {
@@ -574,7 +581,7 @@ func (c *Controller) userInfoMonitor() (err error) {
 		if !c.config.DisableUploadTraffic {
 			err = c.apiClient.ReportUserTraffic(&userTraffic)
 		}
-		// If report traffic error, not clear the traffic
+		// 上报失败时保留计数，避免流量丢失；成功后才归零。
 		if err != nil {
 			c.logger.Print(err)
 		} else {
@@ -582,7 +589,7 @@ func (c *Controller) userInfoMonitor() (err error) {
 		}
 	}
 
-	// Report Online info
+	// 上报在线用户及其来源 IP。
 	if onlineDevice, err := c.GetOnlineDevice(c.Tag); err != nil {
 		c.logger.Print(err)
 	} else if len(*onlineDevice) > 0 {
@@ -593,7 +600,7 @@ func (c *Controller) userInfoMonitor() (err error) {
 		}
 	}
 
-	// Report Illegal user
+	// 上报命中审计规则的用户。
 	if detectResult, err := c.GetDetectResult(c.Tag); err != nil {
 		c.logger.Print(err)
 	} else if len(*detectResult) > 0 {
@@ -615,7 +622,7 @@ func (c *Controller) buildNodeTag() string {
 // 	return fmt.Sprintf("[%s] %s(ID=%d)", c.clientInfo.APIHost, c.nodeInfo.NodeType, c.nodeInfo.NodeID)
 // }
 
-// Check Cert
+// certMonitor 检查并续期自动管理的 TLS 证书。
 func (c *Controller) certMonitor() error {
 	if c.nodeInfo.EnableTLS && c.config.EnableREALITY == false {
 		switch c.config.CertConfig.CertMode {
@@ -624,7 +631,7 @@ func (c *Controller) certMonitor() error {
 			if err != nil {
 				c.logger.Print(err)
 			}
-			// Xray-core supports the OcspStapling certification hot renew
+			// xray-core 支持证书热更新，续期后不需要重启整个进程。
 			_, _, _, err = lego.RenewCert()
 			if err != nil {
 				c.logger.Print(err)

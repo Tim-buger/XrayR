@@ -22,7 +22,7 @@ import (
 	"github.com/XrayR-project/XrayR/api"
 )
 
-// APIClient create an api client to the panel.
+// APIClient 新版 V2board 面板 API 客户端
 type APIClient struct {
 	client        *resty.Client
 	APIHost       string
@@ -38,7 +38,7 @@ type APIClient struct {
 	eTags         map[string]string
 }
 
-// New create an api instance
+// New 创建 V2board API 客户端
 func New(apiConfig *api.Config) *APIClient {
 	client := resty.New()
 	client.SetRetryCount(3)
@@ -59,6 +59,7 @@ func New(apiConfig *api.Config) *APIClient {
 	var nodeType string
 
 	if apiConfig.NodeType == "V2ray" && apiConfig.EnableVless {
+		// V2ray + vless 兼容
 		nodeType = "vless"
 	} else {
 		nodeType = strings.ToLower(apiConfig.NodeType)
@@ -87,7 +88,7 @@ func New(apiConfig *api.Config) *APIClient {
 	return apiClient
 }
 
-// readLocalRuleList reads the local rule list file
+// readLocalRuleList 读取本地规则文件
 func readLocalRuleList(path string) (LocalRuleList []api.DetectRule) {
 	LocalRuleList = make([]api.DetectRule, 0)
 

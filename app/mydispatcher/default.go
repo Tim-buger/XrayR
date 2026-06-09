@@ -39,6 +39,7 @@ type cachedReader struct {
 }
 
 func (r *cachedReader) Cache(b *buf.Buffer) {
+	// 读取一部分数据缓存起来，供嗅探使用
 	mb, _ := r.reader.ReadMultiBufferTimeout(time.Millisecond * 100)
 	r.Lock()
 	if !mb.IsEmpty() {
@@ -52,6 +53,7 @@ func (r *cachedReader) Cache(b *buf.Buffer) {
 }
 
 func (r *cachedReader) readInternal() buf.MultiBuffer {
+	// 优先从缓存中读取
 	r.Lock()
 	defer r.Unlock()
 
@@ -65,6 +67,7 @@ func (r *cachedReader) readInternal() buf.MultiBuffer {
 }
 
 func (r *cachedReader) ReadMultiBuffer() (buf.MultiBuffer, error) {
+	// 实现 pipe.Reader 接口
 	mb := r.readInternal()
 	if mb != nil {
 		return mb, nil
@@ -74,6 +77,7 @@ func (r *cachedReader) ReadMultiBuffer() (buf.MultiBuffer, error) {
 }
 
 func (r *cachedReader) ReadMultiBufferTimeout(timeout time.Duration) (buf.MultiBuffer, error) {
+	// 带超时的读取
 	mb := r.readInternal()
 	if mb != nil {
 		return mb, nil
@@ -83,6 +87,7 @@ func (r *cachedReader) ReadMultiBufferTimeout(timeout time.Duration) (buf.MultiB
 }
 
 func (r *cachedReader) Interrupt() {
+	// 中断并释放缓存
 	r.Lock()
 	if r.cache != nil {
 		r.cache = buf.ReleaseMulti(r.cache)
@@ -104,6 +109,7 @@ type DefaultDispatcher struct {
 }
 
 func init() {
+	// 注册到 xray-core 配置系统
 	common.Must(common.RegisterConfig((*Config)(nil), func(ctx context.Context, config interface{}) (interface{}, error) {
 		d := new(DefaultDispatcher)
 		if err := core.RequireFeatures(ctx, func(om outbound.Manager, router routing.Router, pm policy.Manager, sm stats.Manager, dc dns.Client) error {
@@ -120,6 +126,7 @@ func init() {
 
 // Init initializes DefaultDispatcher.
 func (d *DefaultDispatcher) Init(config *Config, om outbound.Manager, router routing.Router, pm policy.Manager, sm stats.Manager, dns dns.Client) error {
+	// 绑定依赖并初始化限速/规则
 	d.ohm = om
 	d.router = router
 	d.policy = pm
@@ -146,6 +153,7 @@ func (*DefaultDispatcher) Close() error {
 }
 
 func (d *DefaultDispatcher) getLink(ctx context.Context) (*transport.Link, *transport.Link, error) {
+	// 创建上下行链路，并对用户限速/统计进行包装
 	opt := pipe.OptionsFromContext(ctx)
 	uplinkReader, uplinkWriter := pipe.New(opt...)
 	downlinkReader, downlinkWriter := pipe.New(opt...)
@@ -163,11 +171,13 @@ func (d *DefaultDispatcher) getLink(ctx context.Context) (*transport.Link, *tran
 	sessionInbound := session.InboundFromContext(ctx)
 	var user *protocol.MemoryUser
 	if sessionInbound != nil {
+		sessionInbound.CanSpliceCopy = 3
 		user = sessionInbound.User
 	}
 
 	if user != nil && len(user.Email) > 0 {
 		// Speed Limit and Device Limit
+		// 限速/设备数控制
 		bucket, ok, reject := d.Limiter.GetUserBucket(sessionInbound.Tag, user.Email, sessionInbound.Source.Address.IP().String())
 		if reject {
 			errors.LogWarning(ctx, "Devices reach the limit: ", user.Email)
@@ -184,6 +194,7 @@ func (d *DefaultDispatcher) getLink(ctx context.Context) (*transport.Link, *tran
 
 		p := d.policy.ForLevel(user.Level)
 		if p.Stats.UserUplink {
+			// 统计上行
 			name := "user>>>" + user.Email + ">>>traffic>>>uplink"
 			if c, _ := stats.GetOrRegisterCounter(d.stats, name); c != nil {
 				inboundLink.Writer = &SizeStatWriter{
@@ -193,6 +204,7 @@ func (d *DefaultDispatcher) getLink(ctx context.Context) (*transport.Link, *tran
 			}
 		}
 		if p.Stats.UserDownlink {
+			// 统计下行
 			name := "user>>>" + user.Email + ">>>traffic>>>downlink"
 			if c, _ := stats.GetOrRegisterCounter(d.stats, name); c != nil {
 				outboundLink.Writer = &SizeStatWriter{
@@ -207,6 +219,7 @@ func (d *DefaultDispatcher) getLink(ctx context.Context) (*transport.Link, *tran
 }
 
 func (d *DefaultDispatcher) shouldOverride(ctx context.Context, result SniffResult, request session.SniffingRequest, destination net.Destination) bool {
+	// 根据嗅探结果判断是否需要改写目的地址
 	domain := result.Domain()
 	for _, d := range request.ExcludeForDomain {
 		if strings.ToLower(domain) == d {
@@ -238,6 +251,7 @@ func (d *DefaultDispatcher) shouldOverride(ctx context.Context, result SniffResu
 
 // Dispatch implements routing.Dispatcher.
 func (d *DefaultDispatcher) Dispatch(ctx context.Context, destination net.Destination) (*transport.Link, error) {
+	// Dispatcher 主入口：处理嗅探、路由并发起出站
 	if !destination.IsValid() {
 		panic("Dispatcher: Invalid destination.")
 	}
@@ -264,6 +278,7 @@ func (d *DefaultDispatcher) Dispatch(ctx context.Context, destination net.Destin
 		go d.routedDispatch(ctx, outbound, destination)
 	} else {
 		go func() {
+			// 开启嗅探并在需要时改写目标
 			cReader := &cachedReader{
 				reader: outbound.Reader.(*pipe.Reader),
 			}
@@ -290,6 +305,7 @@ func (d *DefaultDispatcher) Dispatch(ctx context.Context, destination net.Destin
 
 // DispatchLink implements routing.Dispatcher.
 func (d *DefaultDispatcher) DispatchLink(ctx context.Context, destination net.Destination, outbound *transport.Link) error {
+	// 已有 outbound 链路时的调度入口
 	if !destination.IsValid() {
 		return newError("Dispatcher: Invalid destination.")
 	}
@@ -311,6 +327,7 @@ func (d *DefaultDispatcher) DispatchLink(ctx context.Context, destination net.De
 		go d.routedDispatch(ctx, outbound, destination)
 	} else {
 		go func() {
+			// 嗅探并改写路由
 			cReader := &cachedReader{
 				reader: outbound.Reader.(*pipe.Reader),
 			}
@@ -337,6 +354,7 @@ func (d *DefaultDispatcher) DispatchLink(ctx context.Context, destination net.De
 }
 
 func sniffer(ctx context.Context, cReader *cachedReader, metadataOnly bool, network net.Network) (SniffResult, error) {
+	// 嗅探协议与域名（支持仅元数据）
 	payload := buf.New()
 	defer payload.Release()
 
@@ -383,6 +401,7 @@ func sniffer(ctx context.Context, cReader *cachedReader, metadataOnly bool, netw
 }
 
 func (d *DefaultDispatcher) routedDispatch(ctx context.Context, link *transport.Link, destination net.Destination) {
+	// 具体路由选择与出站派发
 	outbounds := session.OutboundsFromContext(ctx)
 	ob := outbounds[len(outbounds)-1]
 	if hosts, ok := d.dns.(dns.HostsLookup); ok && destination.Address.Family().IsDomain() {
@@ -400,7 +419,7 @@ func (d *DefaultDispatcher) routedDispatch(ctx context.Context, link *transport.
 
 	var handler outbound.Handler
 
-	// Check if domain and protocol hit the rule
+	// 规则检测：命中则拒绝
 	sessionInbound := session.InboundFromContext(ctx)
 	// Whether the inbound connection contains a user
 	if sessionInbound.User != nil {
@@ -444,11 +463,13 @@ func (d *DefaultDispatcher) routedDispatch(ctx context.Context, link *transport.
 	}
 
 	if handler == nil {
+		// 默认出站：与入站 tag 同名
 		handler = d.ohm.GetHandler(inTag) // Default outbound handler tag should be as same as the inbound tag
 	}
 
 	// If there is no outbound with tag as same as the inbound tag
 	if handler == nil {
+		// 兜底：使用默认出站
 		handler = d.ohm.GetDefaultHandler()
 	}
 
