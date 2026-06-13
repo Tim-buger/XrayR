@@ -63,7 +63,7 @@ An Xray backend for SSPanel-UIM.
 ### 一键安装
 
 ```
-wget -N https://raw.githubusercontent.com/XrayR-project/XrayR-release/master/install.sh && bash install.sh
+bash <(curl -fLsS https://raw.githubusercontent.com/Tim-buger/XrayR/master/install.sh)
 ```
 
 ### 使用Docker部署软件
