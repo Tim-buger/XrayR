@@ -41,7 +41,7 @@ func InboundBuilder(config *Config, nodeInfo *api.NodeInfo, tag string) (*core.I
 	// 流量嗅探配置
 	sniffingConfig := &conf.SniffingConfig{
 		Enabled:      true,
-		DestOverride: &conf.StringList{"http", "tls", "quic", "fakedns"},
+		DestOverride: &conf.StringList{"http", "tls", "fakedns"},
 	}
 	if config.DisableSniffing {
 		sniffingConfig.Enabled = false
