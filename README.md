@@ -1,24 +1,13 @@
 # XrayR
 
-[![](https://img.shields.io/badge/TgChat-@XrayR讨论-blue.svg)](https://t.me/XrayR_project)
-[![](https://img.shields.io/badge/Channel-@XrayR通知-blue.svg)](https://t.me/XrayR_channel)
-![](https://img.shields.io/github/stars/XrayR-project/XrayR)
-![](https://img.shields.io/github/forks/XrayR-project/XrayR)
 ![](https://github.com/XrayR-project/XrayR/actions/workflows/release.yml/badge.svg)
 ![](https://github.com/XrayR-project/XrayR/actions/workflows/docker.yml/badge.svg)
-[![Github All Releases](https://img.shields.io/github/downloads/XrayR-project/XrayR/total.svg)]()
-
-
-[English](https://github.com/XrayR-project/XrayR/blob/master/README-en.md)|[Iranian](https://github.com/XrayR-project/XrayR/blob/master/README_Fa.md)|[Vietnamese](https://github.com/XrayR-project/XrayR/blob/master/README-vi.md)
-
-An Xray backend for SSPanel-UIM.
 
 一个面向 SSPanel-UIM 的 Xray 后端，支持 V2Ray、Trojan、Shadowsocks 协议。
 
 如果您喜欢本项目，可以右上角点个star+watch，持续关注本项目的进展。
 
 使用教程：[详细使用教程](https://xrayr-project.github.io/XrayR-doc/)
-
 
 ## 免责声明
 
@@ -90,14 +79,4 @@ bash <(curl -fLsS https://raw.githubusercontent.com/Tim-buger/XrayR/master/insta
 
 ## Licence
 
-[Mozilla Public License Version 2.0](https://github.com/XrayR-project/XrayR/blob/master/LICENSE)
-
-## Telgram
-
-[XrayR后端讨论](https://t.me/XrayR_project)
-
-[XrayR通知](https://t.me/XrayR_channel)
-
-## Stargazers over time
-
-[![Stargazers over time](https://starchart.cc/XrayR-project/XrayR.svg)](https://starchart.cc/XrayR-project/XrayR)
+[Mozilla Public License Version 2.0](https://github.com/Tim-buger/XrayR/blob/master/LICENSE)
