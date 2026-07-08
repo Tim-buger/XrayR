@@ -171,6 +171,31 @@ func (l *Limiter) GetOnlineDevice(tag string) (*[]api.OnlineUser, error) {
 	return &onlineUser, nil
 }
 
+func (l *Limiter) RecordOnlineIP(tag string, userTag string, ip string) error {
+	// 记录本周期内用户来源 IP，供 aliveip 上报任务读取。
+	if ip == "" || ip == "<nil>" {
+		return nil
+	}
+	value, ok := l.InboundInfo.Load(tag)
+	if !ok {
+		return fmt.Errorf("no such inbound in limiter: %s", tag)
+	}
+
+	inboundInfo := value.(*InboundInfo)
+	v, ok := inboundInfo.UserInfo.Load(userTag)
+	if !ok {
+		return fmt.Errorf("no such user in limiter: %s", userTag)
+	}
+	uid := v.(UserInfo).UID
+
+	ipMap := new(sync.Map)
+	ipMap.Store(ip, uid)
+	if v, ok := inboundInfo.UserOnlineIP.LoadOrStore(userTag, ipMap); ok {
+		v.(*sync.Map).Store(ip, uid)
+	}
+	return nil
+}
+
 func (l *Limiter) GetUserBucket(tag string, email string, ip string) (limiter *rate.Limiter, SpeedLimit bool, Reject bool) {
 	// 获取用户速率桶并执行设备数限制
 	if value, ok := l.InboundInfo.Load(tag); ok {

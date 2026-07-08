@@ -27,14 +27,18 @@ func (c *Controller) removeInbound(tag string) error {
 // statsOutboundWrapper wraps outbound.Handler to ensure user downlink traffic is counted.
 type statsOutboundWrapper struct {
 	outbound.Handler
-	pm policy.Manager
-	sm stats.Manager
+	pm      policy.Manager
+	sm      stats.Manager
+	limiter *limiter.Limiter
 }
 
 func (w *statsOutboundWrapper) Dispatch(ctx context.Context, link *transport.Link) {
 	// Disable kernel splice to avoid Vision/REALITY bypassing userland stats path
 	if sess := session.InboundFromContext(ctx); sess != nil {
 		sess.CanSpliceCopy = 3
+		if w.limiter != nil && sess.User != nil && sess.User.Email != "" {
+			_ = w.limiter.RecordOnlineIP(sess.Tag, sess.User.Email, sess.Source.Address.IP().String())
+		}
 	}
 	w.Handler.Dispatch(ctx, link)
 }
@@ -72,7 +76,7 @@ func (c *Controller) addOutbound(config *core.OutboundHandlerConfig) error {
 		return fmt.Errorf("not an InboundHandler: %s", err)
 	}
 	// Wrap outbound handler to ensure downlink stats are always counted (e.g., REALITY/VLESS cases)
-	handler = &statsOutboundWrapper{Handler: handler, pm: c.pm, sm: c.stm}
+	handler = &statsOutboundWrapper{Handler: handler, pm: c.pm, sm: c.stm, limiter: c.dispatcher.Limiter}
 	if err := c.obm.AddHandler(context.Background(), handler); err != nil {
 		return err
 	}
@@ -159,13 +163,22 @@ func (c *Controller) getTraffic(email string) (up int64, down int64, upCounter s
 	return up, down, upCounter, downCounter
 }
 
-func (c *Controller) resetTraffic(upCounterList *[]stats.Counter, downCounterList *[]stats.Counter) {
-	// 归零统计计数器
+type trafficCounterSample struct {
+	counter stats.Counter
+	value   int64
+}
+
+func (c *Controller) resetTraffic(upCounterList *[]trafficCounterSample, downCounterList *[]trafficCounterSample) {
+	// 只扣减本周期已上报的流量，避免把上报请求期间新增的流量清零。
 	for _, upCounter := range *upCounterList {
-		upCounter.Set(0)
+		if upCounter.counter.Add(-upCounter.value) < 0 {
+			upCounter.counter.Set(0)
+		}
 	}
 	for _, downCounter := range *downCounterList {
-		downCounter.Set(0)
+		if downCounter.counter.Add(-downCounter.value) < 0 {
+			downCounter.counter.Set(0)
+		}
 	}
 }
 

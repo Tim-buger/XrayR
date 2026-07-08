@@ -5,8 +5,6 @@
 
 一个面向 SSPanel-UIM 的 Xray 后端，支持 V2Ray、Trojan、Shadowsocks 协议。
 
-如果您喜欢本项目，可以右上角点个star+watch，持续关注本项目的进展。
-
 使用教程：[详细使用教程](https://xrayr-project.github.io/XrayR-doc/)
 
 ## 免责声明

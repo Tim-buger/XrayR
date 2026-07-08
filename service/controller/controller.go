@@ -529,8 +529,8 @@ func (c *Controller) userInfoMonitor() (err error) {
 
 	// 读取每个用户的上下行计数，并执行自动限速判断。
 	var userTraffic []api.UserTraffic
-	var upCounterList []stats.Counter
-	var downCounterList []stats.Counter
+	var upCounterList []trafficCounterSample
+	var downCounterList []trafficCounterSample
 	AutoSpeedLimit := int64(c.config.AutoSpeedLimitConfig.Limit)
 	UpdatePeriodic := int64(c.config.UpdatePeriodic)
 	limitedUsers := make([]api.UserInfo, 0)
@@ -566,10 +566,10 @@ func (c *Controller) userInfoMonitor() (err error) {
 				Download: down})
 
 			if upCounter != nil {
-				upCounterList = append(upCounterList, upCounter)
+				upCounterList = append(upCounterList, trafficCounterSample{counter: upCounter, value: up})
 			}
 			if downCounter != nil {
-				downCounterList = append(downCounterList, downCounter)
+				downCounterList = append(downCounterList, trafficCounterSample{counter: downCounter, value: down})
 			}
 		} else {
 			delete(c.warnedUsers, user)
