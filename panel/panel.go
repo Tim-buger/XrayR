@@ -8,10 +8,14 @@ import (
 	"dario.cat/mergo"
 	"github.com/r3labs/diff/v2"
 	log "github.com/sirupsen/logrus"
+	"github.com/xtls/xray-core/app/dispatcher"
 	"github.com/xtls/xray-core/app/proxyman"
 	"github.com/xtls/xray-core/app/stats"
 	"github.com/xtls/xray-core/common/serial"
 	"github.com/xtls/xray-core/core"
+	"github.com/xtls/xray-core/features/outbound"
+	"github.com/xtls/xray-core/features/policy"
+	featurestats "github.com/xtls/xray-core/features/stats"
 	"github.com/xtls/xray-core/infra/conf"
 
 	"github.com/XrayR-project/XrayR/api/sspanel"
@@ -134,6 +138,7 @@ func (p *Panel) loadCore(panelConfig *Config) *core.Instance {
 	config := &core.Config{
 		App: []*serial.TypedMessage{
 			serial.ToTypedMessage(coreLogConfig.Build()),
+			serial.ToTypedMessage(&dispatcher.Config{}),
 			serial.ToTypedMessage(&mydispatcher.Config{}),
 			serial.ToTypedMessage(&stats.Config{}),
 			serial.ToTypedMessage(&proxyman.InboundConfig{}),
@@ -149,8 +154,40 @@ func (p *Panel) loadCore(panelConfig *Config) *core.Instance {
 	if err != nil {
 		log.Panicf("failed to create instance: %s", err)
 	}
+	p.wrapConfiguredOutboundHandlers(server)
 
 	return server
+}
+
+func (p *Panel) wrapConfiguredOutboundHandlers(server *core.Instance) {
+	obm, ok := server.GetFeature(outbound.ManagerType()).(outbound.Manager)
+	if !ok || obm == nil {
+		return
+	}
+	dispatcherState, ok := server.GetFeature(mydispatcher.Type()).(*mydispatcher.DefaultDispatcher)
+	if !ok || dispatcherState == nil || dispatcherState.Limiter == nil {
+		return
+	}
+	pm, _ := server.GetFeature(policy.ManagerType()).(policy.Manager)
+	sm, _ := server.GetFeature(featurestats.ManagerType()).(featurestats.Manager)
+
+	for _, handler := range obm.ListHandlers(nil) {
+		tag := handler.Tag()
+		if tag == "" {
+			continue
+		}
+		wrapped := controller.WrapOutboundHandler(handler, pm, sm, dispatcherState.Limiter)
+		if wrapped == handler {
+			continue
+		}
+		if err := obm.RemoveHandler(nil, tag); err != nil {
+			log.Printf("Wrap outbound %s failed while removing old handler: %s", tag, err)
+			continue
+		}
+		if err := obm.AddHandler(nil, wrapped); err != nil {
+			log.Panicf("Wrap outbound %s failed while adding wrapped handler: %s", tag, err)
+		}
+	}
 }
 
 // Start 启动 xray-core，并为配置中的每个节点启动一个控制器。
