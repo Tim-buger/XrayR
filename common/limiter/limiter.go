@@ -188,10 +188,15 @@ func (l *Limiter) RecordOnlineIP(tag string, userTag string, ip string) error {
 	}
 	uid := v.(UserInfo).UID
 
+	if v, ok := inboundInfo.UserOnlineIP.Load(userTag); ok {
+		v.(*sync.Map).Store(ip, uid)
+		return nil
+	}
+
 	ipMap := new(sync.Map)
 	ipMap.Store(ip, uid)
-	if v, ok := inboundInfo.UserOnlineIP.LoadOrStore(userTag, ipMap); ok {
-		v.(*sync.Map).Store(ip, uid)
+	if actual, loaded := inboundInfo.UserOnlineIP.LoadOrStore(userTag, ipMap); loaded {
+		actual.(*sync.Map).Store(ip, uid)
 	}
 	return nil
 }
