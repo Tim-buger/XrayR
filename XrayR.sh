@@ -109,11 +109,13 @@ install() {
 
 update() {
     local installer result
+    local target_version=""
 
     if [[ $# == 0 ]]; then
         echo && echo -n -e "输入指定版本(默认最新版): " && read version
+        target_version="${version}"
     else
-        version=$2
+        target_version="${2:-}"
     fi
 #    confirm "本功能会强制重装当前最新版，数据不会丢失，是否继续?" "n"
 #    if [[ $? != 0 ]]; then
@@ -129,7 +131,11 @@ update() {
         echo -e "${red}下载安装脚本失败${plain}"
         return 1
     fi
-    bash "${installer}" "${version}"
+    if [[ -n "${target_version}" ]]; then
+        bash "${installer}" "${target_version}"
+    else
+        bash "${installer}"
+    fi
     result=$?
     rm -f "${installer}"
     if [[ ${result} == 0 ]]; then
