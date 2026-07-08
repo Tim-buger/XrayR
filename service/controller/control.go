@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	log "github.com/sirupsen/logrus"
 	"github.com/xtls/xray-core/common/protocol"
 	"github.com/xtls/xray-core/common/session"
 	"github.com/xtls/xray-core/core"
@@ -33,11 +34,21 @@ type statsOutboundWrapper struct {
 }
 
 func (w *statsOutboundWrapper) Dispatch(ctx context.Context, link *transport.Link) {
-	// Disable kernel splice to avoid Vision/REALITY bypassing userland stats path
+	// 禁用内核 splice，以防止 Vision/REALITY 绕过用户态统计路径。
 	if sess := session.InboundFromContext(ctx); sess != nil {
 		sess.CanSpliceCopy = 3
 		if w.limiter != nil && sess.User != nil && sess.User.Email != "" {
-			_ = w.limiter.RecordOnlineIP(sess.Tag, sess.User.Email, sess.Source.Address.IP().String())
+			ip := sess.Source.Address.IP().String()
+			if err := w.limiter.RecordOnlineIP(sess.Tag, sess.User.Email, ip); err != nil {
+				log.Printf("Record online IP failed: tag=%s user=%s ip=%s err=%v", sess.Tag, sess.User.Email, ip, err)
+			}
+		} else {
+			userNil := sess.User == nil
+			email := ""
+			if sess.User != nil {
+				email = sess.User.Email
+			}
+			log.Debugf("Skip record online IP: limiterNil=%v userNil=%v email=%q tag=%s", w.limiter == nil, userNil, email, sess.Tag)
 		}
 	}
 	w.Handler.Dispatch(ctx, link)
