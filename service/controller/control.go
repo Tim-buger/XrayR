@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	log "github.com/sirupsen/logrus"
 	"github.com/xtls/xray-core/common/protocol"
 	"github.com/xtls/xray-core/common/session"
 	"github.com/xtls/xray-core/core"
@@ -28,28 +27,14 @@ func (c *Controller) removeInbound(tag string) error {
 // statsOutboundWrapper wraps outbound.Handler to ensure user downlink traffic is counted.
 type statsOutboundWrapper struct {
 	outbound.Handler
-	pm      policy.Manager
-	sm      stats.Manager
-	limiter *limiter.Limiter
+	pm policy.Manager
+	sm stats.Manager
 }
 
 func (w *statsOutboundWrapper) Dispatch(ctx context.Context, link *transport.Link) {
 	// 禁用内核 splice，以防止 Vision/REALITY 绕过用户态统计路径。
 	if sess := session.InboundFromContext(ctx); sess != nil {
 		sess.CanSpliceCopy = 3
-		if w.limiter != nil && sess.User != nil && sess.User.Email != "" {
-			ip := sess.Source.Address.IP().String()
-			if err := w.limiter.RecordOnlineIP(sess.Tag, sess.User.Email, ip); err != nil {
-				log.Printf("Record online IP failed: tag=%s user=%s ip=%s err=%v", sess.Tag, sess.User.Email, ip, err)
-			}
-		} else {
-			userNil := sess.User == nil
-			email := ""
-			if sess.User != nil {
-				email = sess.User.Email
-			}
-			log.Debugf("Skip record online IP: limiterNil=%v userNil=%v email=%q tag=%s", w.limiter == nil, userNil, email, sess.Tag)
-		}
 	}
 	w.Handler.Dispatch(ctx, link)
 }
@@ -87,7 +72,7 @@ func (c *Controller) addOutbound(config *core.OutboundHandlerConfig) error {
 		return fmt.Errorf("not an InboundHandler: %s", err)
 	}
 	// Wrap outbound handler to ensure downlink stats are always counted (e.g., REALITY/VLESS cases)
-	handler = &statsOutboundWrapper{Handler: handler, pm: c.pm, sm: c.stm, limiter: c.dispatcher.Limiter}
+	handler = &statsOutboundWrapper{Handler: handler, pm: c.pm, sm: c.stm}
 	if err := c.obm.AddHandler(context.Background(), handler); err != nil {
 		return err
 	}
